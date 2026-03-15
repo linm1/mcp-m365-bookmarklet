@@ -1,0 +1,23 @@
+{
+  "name": "mcp-m365-bookmarklet",
+  "version": "1.0.0",
+  "description": "Standalone bookmarklet for MCP tool calling on M365 Copilot Chat",
+  "type": "module",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "test": "vitest run --coverage",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "dev": "node esbuild.config.mjs --watch",
+    "serve": "http-server dist -p 3007 --cors -c-1"
+  },
+  "devDependencies": {
+    "http-server": "^14.1.1",
+    "@types/node": "^20.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "esbuild": "^0.20.0",
+    "happy-dom": "^13.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
