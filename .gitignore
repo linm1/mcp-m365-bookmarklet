@@ -21,3 +21,11 @@ Thumbs.db
 .idea/
 *.suo
 *.user
+
+# Certificates
+*.pem
+*.crt
+*.key
+
+# claude
+.claude/
