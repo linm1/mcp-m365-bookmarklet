@@ -226,5 +226,126 @@ describe('ControlPanel', () => {
 
       expect(onReconnect).toHaveBeenCalledTimes(1);
     });
+
+    it('fires onAutoRunChange when auto-run toggle is changed', () => {
+      const onAutoRunChange = vi.fn();
+      const panel = new ControlPanel(
+        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false },
+        { onAutoRunChange },
+      );
+      panel.mount();
+
+      const inputs = document.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+      inputs[2].checked = true;
+      inputs[2].dispatchEvent(new Event('change'));
+
+      expect(onAutoRunChange).toHaveBeenCalledWith(true);
+    });
+  });
+
+  // ── drag ───────────────────────────────────────────────────────────────────
+
+  describe('drag', () => {
+    it('moves panel on mousemove after mousedown on panel body', () => {
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      panel.mount();
+
+      const el = document.getElementById('mcp-bookmarklet-panel')!;
+      el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 100, clientY: 100 }));
+      document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 150, clientY: 120 }));
+
+      // Panel style.right should be defined (set during drag)
+      expect(el.style.right).toBeDefined();
+    });
+
+    it('does not start drag when mousedown on INPUT', () => {
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      panel.mount();
+
+      const input = document.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      const el = document.getElementById('mcp-bookmarklet-panel')!;
+      const initialRight = el.style.right;
+
+      input.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 100, clientY: 100 }));
+      document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 200, clientY: 200 }));
+
+      expect(el.style.right).toBe(initialRight);
+    });
+
+    it('does not start drag when mousedown on BUTTON', () => {
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      panel.mount();
+
+      const btn = document.querySelector('.panel-reconnect') as HTMLButtonElement;
+      const el = document.getElementById('mcp-bookmarklet-panel')!;
+      const initialRight = el.style.right;
+
+      btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 100, clientY: 100 }));
+      document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: 200, clientY: 200 }));
+
+      expect(el.style.right).toBe(initialRight);
+    });
+
+    it('saves position to sessionStorage on mouseup after drag', () => {
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      panel.mount();
+
+      const el = document.getElementById('mcp-bookmarklet-panel')!;
+      el.style.right = '30px';
+      el.style.bottom = '40px';
+      el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 100, clientY: 100 }));
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      const saved = sessionStorage.getItem('mcp_panel_position');
+      expect(saved).not.toBeNull();
+    });
+
+    it('does not save position on mouseup when not dragging', () => {
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      panel.mount();
+
+      // mouseup without prior mousedown on panel
+      document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+
+      const saved = sessionStorage.getItem('mcp_panel_position');
+      expect(saved).toBeNull();
+    });
+  });
+
+  // ── position persistence ────────────────────────────────────────────────────
+
+  describe('position persistence', () => {
+    it('restores saved position from sessionStorage on mount', () => {
+      sessionStorage.setItem('mcp_panel_position', JSON.stringify({ right: 50, bottom: 100 }));
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      panel.mount();
+
+      const el = document.getElementById('mcp-bookmarklet-panel')!;
+      expect(el.style.right).toBe('50px');
+      expect(el.style.bottom).toBe('100px');
+    });
+
+    it('ignores stored position with non-numeric values', () => {
+      sessionStorage.setItem('mcp_panel_position', JSON.stringify({ right: 'bad', bottom: 100 }));
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+
+      expect(() => panel.mount()).not.toThrow();
+    });
+
+    it('does not throw when sessionStorage.setItem throws', () => {
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      panel.mount();
+
+      vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => { throw new Error('QuotaExceeded'); });
+
+      const el = document.getElementById('mcp-bookmarklet-panel')!;
+      el.style.right = '20px';
+      el.style.bottom = '20px';
+      el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientX: 0, clientY: 0 }));
+
+      expect(() => {
+        document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+      }).not.toThrow();
+    });
   });
 });

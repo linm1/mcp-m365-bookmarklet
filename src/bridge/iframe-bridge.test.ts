@@ -50,6 +50,18 @@ describe('IframeBridge', () => {
       const iframes = document.querySelectorAll('iframe');
       expect(iframes).toHaveLength(1);
     });
+
+    it('reuses existing iframe in DOM when a second bridge instance calls init()', () => {
+      bridge.init();
+
+      const bridge2 = new IframeBridge('http://localhost:3007/app.html');
+      bridge2.init();
+
+      const iframes = document.querySelectorAll('iframe');
+      expect(iframes).toHaveLength(1);
+
+      bridge2.destroy();
+    });
   });
 
   // ── destroy ────────────────────────────────────────────────────────────────
@@ -339,6 +351,36 @@ describe('IframeBridge', () => {
       await flushPromises();
 
       expect(statusCallback).toHaveBeenCalledWith(false, 'http://localhost:3006');
+    });
+
+    it('becomes ready when mcp:ready postMessage is received via message event', async () => {
+      bridge.init();
+
+      const iframe = document.querySelector('iframe') as HTMLIFrameElement;
+      const postMessageSpy = vi.fn();
+      Object.defineProperty(iframe, 'contentWindow', {
+        value: { postMessage: postMessageSpy },
+        configurable: true,
+      });
+
+      // Dispatch mcp:ready via real message event (exercises handleMessage case branch)
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'mcp:ready' },
+          origin: IFRAME_ORIGIN,
+        }),
+      );
+
+      await flushPromises();
+
+      // Bridge is now ready — a listTools call should send immediately
+      void bridge.listTools().catch(() => {});
+      await flushPromises();
+
+      expect(postMessageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'mcp:list-tools' }),
+        IFRAME_ORIGIN,
+      );
     });
   });
 
