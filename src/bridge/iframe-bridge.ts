@@ -14,6 +14,7 @@ import type {
   ToolResultMessage,
   ToolsListMessage,
   ConnectionStatusMessage,
+  DisconnectMessage,
 } from '../shared/protocol';
 import { LOCALHOST_ORIGIN } from '../shared/protocol';
 
@@ -102,13 +103,22 @@ export class IframeBridge {
       pending.reject(new Error('IframeBridge destroyed'));
     }
     this.pendingRequests.clear();
-
-    if (this.iframe) {
-      this.iframe.remove();
-      this.iframe = null;
-    }
+    this.readyQueue = [];
 
     this.isReady = false;
+
+    // Tell the iframe to close its SSE connection gracefully before removal
+    if (this.iframe?.contentWindow) {
+      this.iframe.contentWindow.postMessage(
+        { type: 'mcp:disconnect' } satisfies DisconnectMessage,
+        LOCALHOST_ORIGIN,
+      );
+    }
+
+    // Defer iframe removal to allow SSE close to complete
+    const iframe = this.iframe;
+    this.iframe = null;
+    setTimeout(() => { iframe?.remove(); }, 150);
   }
 
   /**

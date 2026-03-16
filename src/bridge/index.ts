@@ -77,6 +77,7 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
         saveSettings({ ...loadSettings(), autoRun: enabled });
       },
       onReconnect: () => {
+        panel.update({ connected: false });
         bridge.destroy();
         bridge.init();
         bridge

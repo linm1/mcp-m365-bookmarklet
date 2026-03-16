@@ -123,4 +123,57 @@ describe('buildInstructions()', () => {
     const result = buildInstructions(tools);
     expect(result.toLowerCase()).toContain('code fence');
   });
+
+  it('includes nested object properties in parameter schema', () => {
+    const tools: Tool[] = [
+      {
+        name: 'create_user',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            address: {
+              type: 'object',
+              description: 'User address',
+              properties: {
+                street: { type: 'string', description: 'Street name' },
+                city: { type: 'string', description: 'City name' },
+              },
+            },
+          },
+        },
+      },
+    ];
+    const result = buildInstructions(tools);
+    expect(result).toContain('street');
+    expect(result).toContain('Street name');
+    expect(result).toContain('city');
+  });
+
+  it('includes array-of-objects item properties in parameter schema', () => {
+    const tools: Tool[] = [
+      {
+        name: 'batch_process',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            items: {
+              type: 'array',
+              description: 'Items to process',
+              items: {
+                type: 'object',
+                properties: {
+                  id: { type: 'string', description: 'Item identifier' },
+                  value: { type: 'number', description: 'Item value' },
+                },
+              },
+            },
+          },
+        },
+      },
+    ];
+    const result = buildInstructions(tools);
+    expect(result).toContain('Array items (objects) with properties');
+    expect(result).toContain('id');
+    expect(result).toContain('Item identifier');
+  });
 });

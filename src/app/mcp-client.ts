@@ -8,7 +8,7 @@
  *   4. After initialize succeeds, tools/list and tools/call can be called
  */
 
-import type { Tool } from '../shared/protocol';
+import { TOOL_CALL_TIMEOUT_MS, type Tool } from '../shared/protocol';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -171,7 +171,14 @@ export class McpClient {
     const id = this.nextId++;
     this.postToServer({ jsonrpc: '2.0', id, method, params });
     return new Promise<unknown>((resolve, reject) => {
-      this.pendingRpc.set(id, { resolve, reject });
+      const timeoutId = setTimeout(() => {
+        this.pendingRpc.delete(id);
+        reject(new Error(`MCP request timeout (${method})`));
+      }, TOOL_CALL_TIMEOUT_MS);
+      this.pendingRpc.set(id, {
+        resolve: (v) => { clearTimeout(timeoutId); resolve(v); },
+        reject: (e) => { clearTimeout(timeoutId); reject(e); },
+      });
     });
   }
 

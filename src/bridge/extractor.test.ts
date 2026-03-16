@@ -3,6 +3,8 @@ import {
   extractJSONObjects,
   isCompleteFunctionCall,
   findFunctionCallMatches,
+  createPreElement,
+  processTextNode,
   type ExtractedObject,
   type FunctionCallMatch,
 } from './extractor';
@@ -263,5 +265,85 @@ describe('findFunctionCallMatches()', () => {
 
     expect(result[0].jsonContent).toContain('function_call_start');
     expect(result[0].jsonContent).toContain('function_call_end');
+  });
+});
+
+describe('createPreElement()', () => {
+  it('creates a <pre> element with class json-function-call', () => {
+    const pre = createPreElement('{"type":"function_call_start"}');
+    expect(pre.tagName).toBe('PRE');
+    expect(pre.className).toBe('json-function-call');
+  });
+
+  it('sets data-extracted attribute to true', () => {
+    const pre = createPreElement('content');
+    expect(pre.getAttribute('data-extracted')).toBe('true');
+  });
+
+  it('wraps content in code fences via textContent', () => {
+    const pre = createPreElement('{"foo":"bar"}');
+    expect(pre.textContent).toContain('{"foo":"bar"}');
+    expect(pre.textContent).toContain('```');
+  });
+});
+
+describe('processTextNode()', () => {
+  it('returns false for empty text node', () => {
+    const div = document.createElement('div');
+    const node = document.createTextNode('   ');
+    div.appendChild(node);
+    expect(processTextNode(node)).toBe(false);
+  });
+
+  it('returns false for text without function_call markers', () => {
+    const div = document.createElement('div');
+    const node = document.createTextNode('hello world no markers');
+    div.appendChild(node);
+    expect(processTextNode(node)).toBe(false);
+  });
+
+  it('returns false for orphaned text node with no parent', () => {
+    const node = document.createTextNode('{"type":"function_call_start","call_id":"x","name":"t"}');
+    expect(processTextNode(node)).toBe(false);
+  });
+
+  it('replaces complete function call in text node with <pre> element', () => {
+    const content = [
+      '{"type":"function_call_start","call_id":"a","name":"tool"}',
+      '{"type":"function_call_end","call_id":"a"}',
+    ].join('\n');
+    const div = document.createElement('div');
+    const node = document.createTextNode(content);
+    div.appendChild(node);
+
+    const result = processTextNode(node);
+
+    expect(result).toBe(true);
+    expect(div.querySelector('pre.json-function-call')).not.toBeNull();
+  });
+
+  it('preserves surrounding text around the function call', () => {
+    const jsonl = [
+      '{"type":"function_call_start","call_id":"b","name":"t"}',
+      '{"type":"function_call_end","call_id":"b"}',
+    ].join('\n');
+    const content = `before\n${jsonl}\nafter`;
+    const div = document.createElement('div');
+    const node = document.createTextNode(content);
+    div.appendChild(node);
+
+    processTextNode(node);
+
+    expect(div.textContent).toContain('before');
+    expect(div.textContent).toContain('after');
+  });
+
+  it('returns false when text has markers but no complete call', () => {
+    const partial = '{"type":"function_call_start","call_id":"c","name":"t"}';
+    const div = document.createElement('div');
+    const node = document.createTextNode(partial);
+    div.appendChild(node);
+
+    expect(processTextNode(node)).toBe(false);
   });
 });

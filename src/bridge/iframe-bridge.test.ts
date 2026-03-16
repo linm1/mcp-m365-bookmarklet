@@ -3,7 +3,7 @@ import { IframeBridge } from './iframe-bridge';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const IFRAME_ORIGIN = 'http://localhost:3007';
+const IFRAME_ORIGIN = 'https://localhost:3443';
 
 function flushPromises() {
   return new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -14,15 +14,35 @@ function flushPromises() {
 describe('IframeBridge', () => {
   let bridge: IframeBridge;
 
+  // Stub contentWindow on every iframe to avoid happy-dom cross-origin SecurityError.
+  // destroy() calls iframe.contentWindow.postMessage(..., LOCALHOST_ORIGIN) and happy-dom
+  // enforces cross-origin security when the iframe src origin differs from the target.
+  const iframePostMessage = vi.fn();
+
   beforeEach(() => {
     document.body.innerHTML = '';
+    iframePostMessage.mockClear();
     bridge = new IframeBridge('http://localhost:3007/app.html');
+
+    // Intercept iframe creation to stub contentWindow before any test code runs
+    const origCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, 'createElement').mockImplementation((tag, ...rest) => {
+      const el = origCreateElement(tag, ...rest);
+      if (tag === 'iframe') {
+        Object.defineProperty(el, 'contentWindow', {
+          value: { postMessage: iframePostMessage },
+          configurable: true,
+        });
+      }
+      return el;
+    });
   });
 
   afterEach(() => {
-    bridge.destroy();
-    vi.restoreAllMocks();
     vi.useRealTimers();
+    vi.restoreAllMocks();
+    // Clean up any deferred iframe removals from fake timers tests
+    document.body.innerHTML = '';
   });
 
   // ── init ───────────────────────────────────────────────────────────────────
@@ -50,21 +70,83 @@ describe('IframeBridge', () => {
       const iframes = document.querySelectorAll('iframe');
       expect(iframes).toHaveLength(1);
     });
+
+    it('reuses existing iframe in DOM when a second bridge instance calls init()', () => {
+      bridge.init();
+
+      const bridge2 = new IframeBridge('http://localhost:3007/app.html');
+      bridge2.init();
+
+      const iframes = document.querySelectorAll('iframe');
+      expect(iframes).toHaveLength(1);
+
+      bridge2.destroy();
+    });
   });
 
   // ── destroy ────────────────────────────────────────────────────────────────
 
   describe('destroy()', () => {
-    it('removes the iframe from DOM', () => {
+    it('removes the iframe from DOM after 150ms delay', () => {
+      vi.useFakeTimers();
       bridge.init();
       bridge.destroy();
 
-      const iframe = document.querySelector('iframe');
-      expect(iframe).toBeNull();
+      // Iframe should still be present immediately
+      expect(document.querySelector('iframe')).not.toBeNull();
+
+      vi.advanceTimersByTime(150);
+
+      expect(document.querySelector('iframe')).toBeNull();
     });
 
     it('is safe to call when not initialized', () => {
       expect(() => bridge.destroy()).not.toThrow();
+    });
+  });
+
+  // ── destroy() — graceful disconnect ────────────────────────────────────────
+
+  describe('destroy() — graceful disconnect', () => {
+    it('sends mcp:disconnect to iframe contentWindow before removing it', () => {
+      bridge.init();
+
+      bridge.destroy();
+
+      expect(iframePostMessage).toHaveBeenCalledWith(
+        { type: 'mcp:disconnect' },
+        'https://localhost:3443',
+      );
+    });
+
+    it('defers iframe removal so disconnect message can be processed', () => {
+      vi.useFakeTimers();
+      bridge.init();
+
+      bridge.destroy();
+
+      // Iframe should still be in DOM immediately after destroy()
+      expect(document.querySelector('iframe')).not.toBeNull();
+
+      vi.advanceTimersByTime(150);
+
+      // Iframe removed after the 150ms delay
+      expect(document.querySelector('iframe')).toBeNull();
+    });
+
+    it('clears readyQueue on destroy so stale pre-ready messages are not replayed to new iframe', async () => {
+      bridge.init();
+
+      // Queue a message before ready (readyQueue will have an entry)
+      void bridge.listTools().catch(() => {});
+
+      // Verify queue has an entry via private access
+      expect((bridge as any).readyQueue).toHaveLength(1);
+
+      bridge.destroy();
+
+      // Queue must be empty after destroy
+      expect((bridge as any).readyQueue).toHaveLength(0);
     });
   });
 
@@ -340,6 +422,36 @@ describe('IframeBridge', () => {
 
       expect(statusCallback).toHaveBeenCalledWith(false, 'http://localhost:3006');
     });
+
+    it('becomes ready when mcp:ready postMessage is received via message event', async () => {
+      bridge.init();
+
+      const iframe = document.querySelector('iframe') as HTMLIFrameElement;
+      const postMessageSpy = vi.fn();
+      Object.defineProperty(iframe, 'contentWindow', {
+        value: { postMessage: postMessageSpy },
+        configurable: true,
+      });
+
+      // Dispatch mcp:ready via real message event (exercises handleMessage case branch)
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          data: { type: 'mcp:ready' },
+          origin: IFRAME_ORIGIN,
+        }),
+      );
+
+      await flushPromises();
+
+      // Bridge is now ready — a listTools call should send immediately
+      void bridge.listTools().catch(() => {});
+      await flushPromises();
+
+      expect(postMessageSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'mcp:list-tools' }),
+        IFRAME_ORIGIN,
+      );
+    });
   });
 
   // ── ready queue (race condition fix) ───────────────────────────────────────
@@ -429,7 +541,7 @@ describe('IframeBridge', () => {
 
       bridge['onIframeReady']();
 
-      bridge.listTools();
+      void bridge.listTools().catch(() => {});
       await flushPromises();
 
       // Should have sent without waiting

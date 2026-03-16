@@ -97,7 +97,7 @@ describe('settings', () => {
 
   describe('saveSettings()', () => {
     it('persists settings to localStorage', () => {
-      saveSettings({ autoInsert: true, autoSubmit: false, serverUrl: 'http://localhost:3006' });
+      saveSettings({ autoInsert: true, autoSubmit: false, autoRun: false, serverUrl: 'http://localhost:3006' });
 
       const raw = localStorage.getItem('mcp_bookmarklet_settings');
       expect(raw).not.toBeNull();
@@ -106,7 +106,7 @@ describe('settings', () => {
     });
 
     it('can round-trip through save and load', () => {
-      const original = { autoInsert: true, autoSubmit: true, serverUrl: 'http://localhost:8080' };
+      const original = { autoInsert: true, autoSubmit: true, autoRun: false, serverUrl: 'http://localhost:8080' };
 
       saveSettings(original);
       const loaded = loadSettings();
@@ -115,8 +115,8 @@ describe('settings', () => {
     });
 
     it('overwrites previously stored settings', () => {
-      saveSettings({ autoInsert: true, autoSubmit: false, serverUrl: 'http://localhost:3006' });
-      saveSettings({ autoInsert: false, autoSubmit: true, serverUrl: 'http://localhost:4000' });
+      saveSettings({ autoInsert: true, autoSubmit: false, autoRun: false, serverUrl: 'http://localhost:3006' });
+      saveSettings({ autoInsert: false, autoSubmit: true, autoRun: false, serverUrl: 'http://localhost:4000' });
 
       const settings = loadSettings();
 
