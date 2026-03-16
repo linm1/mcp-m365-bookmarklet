@@ -41,6 +41,10 @@ export interface GetSettingsMessage {
   readonly requestId: string;
 }
 
+export interface DisconnectMessage {
+  readonly type: 'mcp:disconnect';
+}
+
 // ── Iframe → Page messages ────────────────────────────────────────────────────
 
 export interface ToolResultMessage {
@@ -86,7 +90,8 @@ export interface AppSettings {
 export type PageToIframeMessage =
   | CallToolMessage
   | ListToolsMessage
-  | GetSettingsMessage;
+  | GetSettingsMessage
+  | DisconnectMessage;
 
 export type IframeToPageMessage =
   | ToolResultMessage

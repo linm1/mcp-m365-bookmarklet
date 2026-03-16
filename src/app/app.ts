@@ -18,6 +18,7 @@ import {
   type ConnectionStatusMessage,
   type ReadyMessage,
   type PageToIframeMessage,
+  type DisconnectMessage,
 } from '../shared/protocol';
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -72,6 +73,10 @@ async function handleMessage(msg: PageToIframeMessage, client: McpClient): Promi
 
     case 'mcp:list-tools':
       await handleListTools(msg as ListToolsMessage, client);
+      break;
+
+    case 'mcp:disconnect':
+      client.disconnect();
       break;
   }
 }

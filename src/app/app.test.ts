@@ -104,4 +104,18 @@ describe('app.ts bootstrap', () => {
     // No new messages sent in response
     expect(parentPostMessage).not.toHaveBeenCalled();
   });
+
+  it('calls client.disconnect() when mcp:disconnect message is received', async () => {
+    const { esMock, fireInbound } = makeAppSetup();
+
+    await import('./app');
+
+    // Fire a valid inbound message first to capture parentOrigin
+    fireInbound({ type: 'mcp:list-tools', requestId: 'r-prime' });
+
+    // Now fire the disconnect signal
+    fireInbound({ type: 'mcp:disconnect' });
+
+    expect(esMock.close).toHaveBeenCalledTimes(1);
+  });
 });
