@@ -55,8 +55,9 @@ let parentOrigin: string | null = null;
     handleMessage(event.data as PageToIframeMessage, client);
   });
 
-  // Signal ready to parent
-  sendToParent<ReadyMessage>({ type: 'mcp:ready' });
+  // Signal ready to parent — bootstrap: true allows '*' target since parentOrigin
+  // is not yet known (no inbound message has arrived to capture it yet).
+  sendToParent<ReadyMessage>({ type: 'mcp:ready' }, { bootstrap: true });
 })();
 
 // ── Message routing ───────────────────────────────────────────────────────────
@@ -112,8 +113,12 @@ async function handleListTools(msg: ListToolsMessage, client: McpClient): Promis
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function sendToParent<T>(message: T): void {
-  if (window.parent && window.parent !== window && parentOrigin !== null) {
-    window.parent.postMessage(message, parentOrigin);
-  }
+function sendToParent<T>(message: T, opts?: { bootstrap?: boolean }): void {
+  if (!window.parent || window.parent === window) return;
+  // Bootstrap signals (mcp:ready) are sent before any inbound message sets
+  // parentOrigin, so we must use '*' for that one handshake only.
+  // All subsequent messages use the captured origin.
+  const target = opts?.bootstrap === true ? '*' : parentOrigin;
+  if (target === null) return;
+  window.parent.postMessage(message, target);
 }
