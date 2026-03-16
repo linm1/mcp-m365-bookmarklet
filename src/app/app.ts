@@ -9,6 +9,7 @@ import { McpClient } from './mcp-client';
 import { loadSettings } from './settings';
 import {
   M365_ORIGIN_PATTERN,
+  LOCALHOST_ORIGIN,
   DEFAULT_SERVER_URL,
   type CallToolMessage,
   type ListToolsMessage,
@@ -20,6 +21,9 @@ import {
 } from '../shared/protocol';
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
+
+/** Captured on first valid inbound message; used as postMessage target. */
+let parentOrigin: string | null = null;
 
 (function init() {
   const settings = loadSettings();
@@ -38,12 +42,15 @@ import {
   client.connect();
 
   window.addEventListener('message', (event: MessageEvent) => {
-    // Validate origin — accept M365 origins and localhost (for dev)
+    // Validate origin — accept M365 origins and localhost (for dev) using exact match
     const origin = event.origin;
     const isM365 = M365_ORIGIN_PATTERN.test(origin);
-    const isLocalhost = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.startsWith('https://localhost') || origin.startsWith('https://127.0.0.1');
+    const isLocalhost = origin === LOCALHOST_ORIGIN || origin === 'http://localhost:3443';
 
     if (!isM365 && !isLocalhost) return;
+
+    // Capture the parent origin on first valid message for use in sendToParent
+    if (parentOrigin === null) parentOrigin = origin;
 
     handleMessage(event.data as PageToIframeMessage, client);
   });
@@ -106,7 +113,7 @@ async function handleListTools(msg: ListToolsMessage, client: McpClient): Promis
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function sendToParent<T>(message: T): void {
-  if (window.parent && window.parent !== window) {
-    window.parent.postMessage(message, '*');
+  if (window.parent && window.parent !== window && parentOrigin !== null) {
+    window.parent.postMessage(message, parentOrigin);
   }
 }
