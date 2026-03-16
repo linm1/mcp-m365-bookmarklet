@@ -32,7 +32,7 @@ function makeMcpSetup() {
     readyState: 1,
   };
 
-  global.EventSource = vi.fn(() => esMock) as unknown as typeof EventSource;
+  global.EventSource = vi.fn().mockImplementation(function () { return esMock; }) as unknown as typeof EventSource;
 
   return {
     fetchMock,

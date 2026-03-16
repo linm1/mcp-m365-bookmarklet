@@ -3,7 +3,7 @@ import { IframeBridge } from './iframe-bridge';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const IFRAME_ORIGIN = 'http://localhost:3007';
+const IFRAME_ORIGIN = 'https://localhost:3443';
 
 function flushPromises() {
   return new Promise<void>((resolve) => setTimeout(resolve, 0));
@@ -429,7 +429,7 @@ describe('IframeBridge', () => {
 
       bridge['onIframeReady']();
 
-      bridge.listTools();
+      void bridge.listTools().catch(() => {});
       await flushPromises();
 
       // Should have sent without waiting
