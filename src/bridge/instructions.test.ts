@@ -124,6 +124,33 @@ describe('buildInstructions()', () => {
     expect(result.toLowerCase()).toContain('code fence');
   });
 
+  // ── New tests for plan changes ──────────────────────────────────────────────
+
+  it('BASE_PROMPT example does NOT wrap function call in ```jsonl code fence', () => {
+    const tools: Tool[] = [{ name: 'dummy_tool' }];
+    const result = buildInstructions(tools);
+    // The example in BASE_PROMPT must not contain ```jsonl — that teaches the LLM the wrong format
+    expect(result).not.toMatch(/```jsonl[\s\S]*?function_call_start[\s\S]*?```/);
+  });
+
+  it('includes <response_format> block with thoughts guidance', () => {
+    const tools: Tool[] = [{ name: 'dummy_tool' }];
+    const result = buildInstructions(tools);
+    expect(result).toContain('<response_format>');
+    expect(result).toContain('<thoughts optional="true">');
+    expect(result).toContain('</response_format>');
+  });
+
+  it('SCHEMA_NOTATION_TABLE appears after the tool list, not before', () => {
+    const tools: Tool[] = [{ name: 'dummy_tool', description: 'A tool' }];
+    const result = buildInstructions(tools);
+    const toolsIdx = result.indexOf('AVAILABLE TOOLS FOR SUPERASSISTANT');
+    const schemaIdx = result.indexOf('Compressed Schema Notation');
+    expect(toolsIdx).toBeGreaterThan(-1);
+    expect(schemaIdx).toBeGreaterThan(-1);
+    expect(schemaIdx).toBeGreaterThan(toolsIdx);
+  });
+
   it('includes nested object properties in parameter schema', () => {
     const tools: Tool[] = [
       {

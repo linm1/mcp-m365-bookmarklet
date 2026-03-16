@@ -21,7 +21,7 @@ You are SuperAssistant whose capabilities are to invoke functions by the help of
 SuperAssistant should ask user to execute the function calls and get back the result of the function execution. Your ONLY job is to provide the user with the correct jsonl script and let user execute that and ask for the output.
 
 Function Call Structure:
-- All function calls should be wrapped in \`\`\`jsonl\`\`\` codeblocks tags like \`\`\`jsonl ... \`\`\` in a NEW LINE. This is strict requirement.
+- All function calls must be output as PLAIN TEXT JSON Lines — one JSON object per line, no code fence wrapper of any kind.
 - Use JSON array format for function calls
 - Each function call is a JSON Lines object with "name", "call_id", and "parameters" properties
 - Parameters are provided as a JSON Lines object with parameter names as keys
@@ -47,13 +47,12 @@ You can ask user to invoke one or more functions by writing a JSON Lines code bl
 
 <example_function_call>
 ### Add New Line Here
-\`\`\`jsonl
+
 {"type": "function_call_start", "name": "function_name", "call_id": 1}
 {"type": "description", "text": "Short 1 line of what this function does"}
 {"type": "parameter", "key": "parameter_1", "value": "value_1"}
 {"type": "parameter", "key": "parameter_2", "value": "value_2"}
 {"type": "function_call_end", "call_id": 1}
-\`\`\`
 </example_function_call>
 
 When a user makes a request:
@@ -69,6 +68,30 @@ When a user makes a request:
 
 Answer the user's request using the relevant tool(s), if they are available. Check that all the required parameters for each tool call are provided or can reasonably be inferred from context. IF there are no relevant tools or there are missing values for required parameters, ask the user to supply these values; otherwise proceed with the tool calls. If the user provides a specific value for a parameter (for example provided in quotes), make sure to use that value EXACTLY. DO NOT make up values for or ask about optional parameters. Carefully analyze descriptive terms in the request as they may indicate required parameter values that should be included even if not explicitly quoted.
 
+`;
+
+// ── Response format template ───────────────────────────────────────────────────
+
+const RESPONSE_FORMAT = `
+<response_format>
+
+<thoughts optional="true">
+User is asking...
+My Thoughts ...
+Observations made ...
+Solutions I plan to use ...
+Best function for this task ... with call_id to be used $CALL_ID + 1 = $CALL_ID
+</thoughts>
+
+{"type": "function_call_start", "name": "function_name", "call_id": 1}
+{"type": "description", "text": "Short 1 line of what this function does"}
+{"type": "parameter", "key": "parameter_1", "value": "value_1"}
+{"type": "parameter", "key": "parameter_2", "value": "value_2"}
+{"type": "function_call_end", "call_id": 1}
+
+</response_format>
+
+Do not use <thoughts> tag in your output — that is just an output format reference showing where to start and end your output. Format thoughts above in a nice paragraph explaining your thought process before the function call, need not be exact lines but just the flow of thought. You can skip these thoughts if not required for a simple task and directly use the JSON function call format.
 `;
 
 // ── Schema notation table ──────────────────────────────────────────────────────
@@ -164,7 +187,7 @@ export function buildInstructions(tools: Tool[]): string {
   }
 
   let out = BASE_PROMPT;
-  out += SCHEMA_NOTATION_TABLE;
+  out += RESPONSE_FORMAT;
   out += '## AVAILABLE TOOLS FOR SUPERASSISTANT\n\n';
 
   for (const tool of tools) {
@@ -211,6 +234,7 @@ export function buildInstructions(tools: Tool[]): string {
     }
   }
 
+  out += SCHEMA_NOTATION_TABLE;
   out += '<\\system>\n\n';
   out += M365_PLAIN_TEXT_OVERRIDE;
   out += M365_COPILOT_INSTRUCTIONS;
