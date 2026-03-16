@@ -70,6 +70,45 @@ describe('extractJSONObjects()', () => {
     });
   });
 
+  it('extracts parameter with number value', () => {
+    const input = '{"type":"parameter","key":"pid","value":42}';
+    const result = extractJSONObjects(input);
+    expect(result).toHaveLength(1);
+    expect(result[0].parsed.value).toBe(42);
+  });
+
+  it('extracts parameter with boolean value', () => {
+    const input = '{"type":"parameter","key":"literalSearch","value":true}';
+    const result = extractJSONObjects(input);
+    expect(result).toHaveLength(1);
+    expect(result[0].parsed.value).toBe(true);
+  });
+
+  it('extracts parameter with array value', () => {
+    const input = '{"type":"parameter","key":"paths","value":["a.txt","b.txt"]}';
+    const result = extractJSONObjects(input);
+    expect(result).toHaveLength(1);
+    expect(result[0].parsed.value).toEqual(['a.txt', 'b.txt']);
+  });
+
+  it('extracts parameter with object value', () => {
+    const input = '{"type":"parameter","key":"config","value":{"key":"val"}}';
+    const result = extractJSONObjects(input);
+    expect(result).toHaveLength(1);
+    expect(result[0].parsed.value).toEqual({ key: 'val' });
+  });
+
+  it('recovers parameter with unescaped Windows backslashes in value (M365 output)', () => {
+    // M365 Copilot emits raw backslashes: "C:\Users\..." which is invalid JSON
+    const withWindowsPath =
+      '{"type":"parameter","key":"path","value":"C:\\Users\\Linm1\\Downloads\\test.txt"}';
+
+    const result = extractJSONObjects(withWindowsPath);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].parsed.value).toBe('C:\\Users\\Linm1\\Downloads\\test.txt');
+  });
+
   it('handles JSON with nested string values', () => {
     const withNested = '{"type":"parameter","name":"content","value":"line1\\nline2"}';
 

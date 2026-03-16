@@ -47,9 +47,10 @@ const INLINE_JSON_PATTERN =
 
 /**
  * Matches individual JSON objects of the function-call types.
+ * Supports one level of nested braces in values (e.g. object/array parameter values).
  */
 const OBJECT_PATTERN =
-  /\{(?:[^{}"]|"(?:\\.|[^"\\])*")*?"type"\s*:\s*"(function_call_start|function_call_end|description|parameter)"(?:[^{}"]|"(?:\\.|[^"\\])*")*?\}/g;
+  /\{(?:[^{}"[\]]|"(?:\\.|[^"\\])*"|\[(?:[^\[\]]|"(?:\\.|[^"\\])*")*\]|\{(?:[^{}]|"(?:\\.|[^"\\])*")*\})*?"type"\s*:\s*"(function_call_start|function_call_end|description|parameter)"(?:[^{}"[\]]|"(?:\\.|[^"\\])*"|\[(?:[^\[\]]|"(?:\\.|[^"\\])*")*\]|\{(?:[^{}]|"(?:\\.|[^"\\])*")*\})*?\}/g;
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
@@ -68,7 +69,19 @@ export function extractJSONObjects(content: string): ExtractedObject[] {
     const typeValue = match[1] as FunctionCallObjectType;
 
     try {
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      // Try parsing as-is first. If it fails (e.g. Windows paths like
+      // "C:\Users\..." that M365 Copilot emits with unescaped backslashes),
+      // fall back to doubling all backslashes in string values and retrying.
+      let parsed: Record<string, unknown>;
+      try {
+        parsed = JSON.parse(raw) as Record<string, unknown>;
+      } catch {
+        const normalized = raw.replace(/"(?:[^"\\]|\\.)*"/g, (match) => {
+          const inner = match.slice(1, -1);
+          return '"' + inner.replace(/\\/g, '\\\\') + '"';
+        });
+        parsed = JSON.parse(normalized) as Record<string, unknown>;
+      }
       results.push({ raw, parsed, type: typeValue });
     } catch {
       // Skip malformed JSON objects

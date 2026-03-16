@@ -23,7 +23,7 @@ interface ParsedFunctionCall {
   readonly name: string;
   readonly callId: string;
   readonly description: string;
-  readonly parameters: Record<string, string>;
+  readonly parameters: Record<string, unknown>;
 }
 
 // ── Public API ────────────────────────────────────────────────────────────────
@@ -103,7 +103,7 @@ function parseFunctionCall(jsonl: string): ParsedFunctionCall | null {
   let name = '';
   let callId = '';
   let description = '';
-  const parameters: Record<string, string> = {};
+  const parameters: Record<string, unknown> = {};
 
   for (const obj of objects) {
     switch (obj.type) {
@@ -112,11 +112,11 @@ function parseFunctionCall(jsonl: string): ParsedFunctionCall | null {
         callId = String(obj.parsed.call_id ?? '');
         break;
       case 'description':
-        description = String(obj.parsed.content ?? '');
+        description = String(obj.parsed.text ?? obj.parsed.content ?? '');
         break;
       case 'parameter': {
-        const paramName = String(obj.parsed.name ?? '');
-        const paramValue = String(obj.parsed.value ?? '');
+        const paramName = String(obj.parsed.key ?? obj.parsed.name ?? '');
+        const paramValue = obj.parsed.value ?? '';
         if (paramName) parameters[paramName] = paramValue;
         break;
       }
@@ -204,7 +204,8 @@ function buildBody(parsed: ParsedFunctionCall): HTMLElement {
 
     const valueEl = document.createElement('div');
     valueEl.className = 'param-value';
-    valueEl.textContent = paramValue;
+    valueEl.textContent =
+      typeof paramValue === 'object' ? JSON.stringify(paramValue) : String(paramValue);
 
     body.appendChild(nameEl);
     body.appendChild(valueEl);

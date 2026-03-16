@@ -100,7 +100,7 @@ export type AnyMessage = PageToIframeMessage | IframeToPageMessage;
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 export const DEFAULT_SERVER_URL = 'http://localhost:3006';
-export const DEFAULT_STATIC_URL = 'http://localhost:3007';
+export const DEFAULT_STATIC_URL = 'https://localhost:3443';
 export const TOOL_CALL_TIMEOUT_MS = 30_000;
 export const M365_ORIGIN_PATTERN = /^https:\/\/m365\.cloud\.microsoft(\.mcas\.ms)?$/;
-export const LOCALHOST_ORIGIN = 'http://localhost:3007';
+export const LOCALHOST_ORIGIN = 'https://localhost:3443';

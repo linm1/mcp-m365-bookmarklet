@@ -17,6 +17,15 @@ const JSONL_MULTI_PARAMS = [
   '{"type":"function_call_end","call_id":"def456"}',
 ].join('\n');
 
+// M365 Copilot Chat emits "key" instead of "name" for parameter objects
+const JSONL_M365_KEY_FORMAT = [
+  '{"type":"function_call_start","call_id":"ghi789","name":"desktop-commander.write_file"}',
+  '{"type":"parameter","key":"path","value":"C:\\\\Users\\\\test\\\\file.txt"}',
+  '{"type":"parameter","key":"content","value":"hello world"}',
+  '{"type":"parameter","key":"mode","value":"rewrite"}',
+  '{"type":"function_call_end","call_id":"ghi789"}',
+].join('\n');
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('renderFunctionCard()', () => {
@@ -89,6 +98,113 @@ describe('renderFunctionCard()', () => {
       'write_file',
       expect.objectContaining({ path: '/out.txt', content: 'hello world' }),
       'def456',
+    );
+  });
+
+  it('preserves number type for numeric parameters', () => {
+    const onRun = vi.fn();
+    const jsonl = [
+      '{"type":"function_call_start","call_id":"n1","name":"read_process_output"}',
+      '{"type":"parameter","key":"pid","value":1234}',
+      '{"type":"parameter","key":"timeout_ms","value":5000}',
+      '{"type":"function_call_end","call_id":"n1"}',
+    ].join('\n');
+
+    const card = renderFunctionCard(jsonl, { onRun });
+    card!.querySelector<HTMLButtonElement>('[data-action="run"]')!.click();
+
+    expect(onRun).toHaveBeenCalledWith(
+      'read_process_output',
+      expect.objectContaining({ pid: 1234, timeout_ms: 5000 }),
+      'n1',
+    );
+    const [, args] = onRun.mock.calls[0];
+    expect(typeof args.pid).toBe('number');
+    expect(typeof args.timeout_ms).toBe('number');
+  });
+
+  it('preserves boolean type for boolean parameters', () => {
+    const onRun = vi.fn();
+    const jsonl = [
+      '{"type":"function_call_start","call_id":"b1","name":"start_search"}',
+      '{"type":"parameter","key":"searchType","value":"files"}',
+      '{"type":"parameter","key":"pattern","value":"*.ts"}',
+      '{"type":"parameter","key":"literalSearch","value":false}',
+      '{"type":"parameter","key":"ignoreCase","value":true}',
+      '{"type":"function_call_end","call_id":"b1"}',
+    ].join('\n');
+
+    const card = renderFunctionCard(jsonl, { onRun });
+    card!.querySelector<HTMLButtonElement>('[data-action="run"]')!.click();
+
+    const [, args] = onRun.mock.calls[0];
+    expect(args.literalSearch).toBe(false);
+    expect(args.ignoreCase).toBe(true);
+    expect(typeof args.literalSearch).toBe('boolean');
+    expect(typeof args.ignoreCase).toBe('boolean');
+  });
+
+  it('preserves array type for array parameters', () => {
+    const onRun = vi.fn();
+    const jsonl = [
+      '{"type":"function_call_start","call_id":"a1","name":"read_multiple_files"}',
+      '{"type":"parameter","key":"paths","value":["file1.txt","file2.txt"]}',
+      '{"type":"function_call_end","call_id":"a1"}',
+    ].join('\n');
+
+    const card = renderFunctionCard(jsonl, { onRun });
+    card!.querySelector<HTMLButtonElement>('[data-action="run"]')!.click();
+
+    const [, args] = onRun.mock.calls[0];
+    expect(args.paths).toEqual(['file1.txt', 'file2.txt']);
+    expect(Array.isArray(args.paths)).toBe(true);
+  });
+
+  it('extracts path parameter with unescaped Windows backslashes (M365 output)', () => {
+    // M365 Copilot emits raw (invalid JSON) backslashes: "C:\Users\..."
+    const jsonlWithWindowsPath = [
+      '{"type":"function_call_start","call_id":"win1","name":"desktop-commander.write_file"}',
+      '{"type":"parameter","key":"path","value":"C:\\Users\\Linm1\\Downloads\\test.txt"}',
+      '{"type":"parameter","key":"content","value":"hello world"}',
+      '{"type":"parameter","key":"mode","value":"rewrite"}',
+      '{"type":"function_call_end","call_id":"win1"}',
+    ].join('\n');
+
+    const onRun = vi.fn();
+    const card = renderFunctionCard(jsonlWithWindowsPath, { onRun });
+
+    expect(card).not.toBeNull();
+
+    const button = card!.querySelector('[data-action="run"]') as HTMLButtonElement;
+    button.click();
+
+    expect(onRun).toHaveBeenCalledWith(
+      'desktop-commander.write_file',
+      expect.objectContaining({
+        path: 'C:\\Users\\Linm1\\Downloads\\test.txt',
+        content: 'hello world',
+      }),
+      'win1',
+    );
+  });
+
+  it('parses parameters using "key" field (M365 Copilot format)', () => {
+    const onRun = vi.fn();
+    const card = renderFunctionCard(JSONL_M365_KEY_FORMAT, { onRun });
+
+    expect(card).not.toBeNull();
+
+    const button = card!.querySelector('button.execute-button, [data-action="run"]') as HTMLButtonElement;
+    button.click();
+
+    expect(onRun).toHaveBeenCalledWith(
+      'desktop-commander.write_file',
+      expect.objectContaining({
+        path: 'C:\\Users\\test\\file.txt',
+        content: 'hello world',
+        mode: 'rewrite',
+      }),
+      'ghi789',
     );
   });
 

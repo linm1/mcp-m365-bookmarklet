@@ -41,7 +41,7 @@ import {
     // Validate origin — accept M365 origins and localhost (for dev)
     const origin = event.origin;
     const isM365 = M365_ORIGIN_PATTERN.test(origin);
-    const isLocalhost = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
+    const isLocalhost = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1') || origin.startsWith('https://localhost') || origin.startsWith('https://127.0.0.1');
 
     if (!isM365 && !isLocalhost) return;
 
