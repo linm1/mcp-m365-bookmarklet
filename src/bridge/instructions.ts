@@ -65,6 +65,7 @@ When a user makes a request:
 7. NEVER invoke multiple functions in a single response
 8. DO NOT STRICTLY GENERATE or form function results.
 9. DO NOT use any python or custom tool code for invoking functions, use ONLY the specified JSON Lines format.
+10. Parameter value types MUST match the schema type: integer and number parameters must be output as unquoted JSON numbers (e.g. 42, not "42"); boolean parameters must be unquoted (true or false, not "true"); only string parameters use quoted values.
 
 Answer the user's request using the relevant tool(s), if they are available. Check that all the required parameters for each tool call are provided or can reasonably be inferred from context. IF there are no relevant tools or there are missing values for required parameters, ask the user to supply these values; otherwise proceed with the tool calls. If the user provides a specific value for a parameter (for example provided in quotes), make sure to use that value EXACTLY. DO NOT make up values for or ask about optional parameters. Carefully analyze descriptive terms in the request as they may indicate required parameter values that should be included even if not explicitly quoted.
 
@@ -85,9 +86,12 @@ Best function for this task ... with call_id to be used $CALL_ID + 1 = $CALL_ID
 
 {"type": "function_call_start", "name": "function_name", "call_id": 1}
 {"type": "description", "text": "Short 1 line of what this function does"}
-{"type": "parameter", "key": "parameter_1", "value": "value_1"}
-{"type": "parameter", "key": "parameter_2", "value": "value_2"}
+{"type": "parameter", "key": "string_param", "value": "some text"}
+{"type": "parameter", "key": "int_param", "value": 42}
+{"type": "parameter", "key": "bool_param", "value": true}
 {"type": "function_call_end", "call_id": 1}
+
+Note: value type must match the parameter schema — integers/numbers are unquoted (42), booleans are unquoted (true/false), strings are quoted ("text").
 
 </response_format>
 
@@ -181,6 +185,40 @@ IMPORTANT OVERRIDE FOR M365 COPILOT — HIGHEST PRIORITY, SUPERSEDES ALL ABOVE:
  * The result should be ATTACHED AS A FILE (not inserted as text) to avoid
  * M365 Lexical editor length limits. Use attachFile() with 'text/markdown'.
  */
+
+/** Collapse embedded newlines/tabs/extra spaces into a single space and trim. */
+function normalizeWs(s: string): string {
+  return s.replace(/\s+/g, ' ').trim();
+}
+
+/** Render JSON Schema constraint attributes as indented sub-lines. */
+function formatParamConstraints(v: Record<string, unknown>): string[] {
+  const lines: string[] = [];
+  if (Array.isArray(v.enum) && v.enum.length > 0)
+    lines.push(`  - allowed values: ${v.enum.map(e => JSON.stringify(e)).join(', ')}`);
+  if (v.const !== undefined)
+    lines.push(`  - must be exactly: ${JSON.stringify(v.const)}`);
+  if (v.minimum !== undefined || v.maximum !== undefined) {
+    const lo = v.minimum ?? '(unbounded)';
+    const hi = v.maximum ?? '(unbounded)';
+    lines.push(`  - range: ${lo} to ${hi}`);
+  }
+  if (v.minLength !== undefined || v.maxLength !== undefined) {
+    const lo = v.minLength ?? 0;
+    const hi = v.maxLength ?? '(unbounded)';
+    lines.push(`  - length: ${lo} to ${hi} characters`);
+  }
+  if (v.pattern) lines.push(`  - pattern: ${v.pattern}`);
+  if (v.format)  lines.push(`  - format: ${v.format}`);
+  if (v.default !== undefined)
+    lines.push(`  - default: ${JSON.stringify(v.default)}`);
+  if (Array.isArray(v.examples) && v.examples.length > 0)
+    lines.push(`  - example: ${JSON.stringify(v.examples[0])}`);
+  else if (v.example !== undefined)
+    lines.push(`  - example: ${JSON.stringify(v.example)}`);
+  return lines;
+}
+
 export function buildInstructions(tools: Tool[]): string {
   if (tools.length === 0) {
     return '# No tools available\n\nConnect to the MCP server to see available tools.';
@@ -194,7 +232,7 @@ export function buildInstructions(tools: Tool[]): string {
     out += ` - ${tool.name}\n`;
 
     if (tool.description) {
-      out += `**Description**: ${tool.description}\n`;
+      out += `**Description**: ${normalizeWs(tool.description)}\n`;
     }
 
     const schema = tool.inputSchema;
@@ -205,15 +243,24 @@ export function buildInstructions(tools: Tool[]): string {
       for (const [key, val] of Object.entries(schema.properties)) {
         const v = val as Record<string, unknown>;
         const req = required.includes(key) ? 'required' : 'optional';
-        const desc = (v.description as string) ?? '';
+        const desc = normalizeWs((v.description as string) ?? '');
         const type = (v.type as string) ?? 'any';
-        out += `- \`${key}\`: ${desc} (${type}) (${req})\n`;
+        const typeHint =
+          type === 'integer' || type === 'number'
+            ? `${type} — must be unquoted JSON number`
+            : type === 'boolean'
+              ? `boolean — must be unquoted true or false`
+              : type;
+        out += `- \`${key}\`: ${desc} (${typeHint}) (${req})\n`;
+        for (const line of formatParamConstraints(v)) {
+          out += line + '\n';
+        }
 
         // Nested object properties
         if (v.type === 'object' && v.properties) {
           const nested = v.properties as Record<string, Record<string, unknown>>;
           for (const [nk, nv] of Object.entries(nested)) {
-            out += `  - \`${nk}\`: ${(nv.description as string) ?? 'No description'} (${(nv.type as string) ?? 'any'})\n`;
+            out += `  - \`${nk}\`: ${normalizeWs((nv.description as string) ?? 'No description')} (${(nv.type as string) ?? 'any'})\n`;
           }
         }
 
@@ -224,7 +271,7 @@ export function buildInstructions(tools: Tool[]): string {
             out += '  - Array items (objects) with properties:\n';
             const itemProps = items.properties as Record<string, Record<string, unknown>>;
             for (const [ik, iv] of Object.entries(itemProps)) {
-              out += `    - \`${ik}\`: ${(iv.description as string) ?? 'No description'} (${(iv.type as string) ?? 'any'})\n`;
+              out += `    - \`${ik}\`: ${normalizeWs((iv.description as string) ?? 'No description')} (${(iv.type as string) ?? 'any'})\n`;
             }
           }
         }
