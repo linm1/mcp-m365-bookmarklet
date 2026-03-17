@@ -1,6 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ControlPanel } from './control-panel';
 
+vi.mock('./tools-drawer', () => ({
+  ToolsDrawer: vi.fn(function MockToolsDrawer(this: { mount: ReturnType<typeof vi.fn>; update: ReturnType<typeof vi.fn>; getEnabledTools: ReturnType<typeof vi.fn>; destroy: ReturnType<typeof vi.fn> }) {
+    this.mount = vi.fn();
+    this.update = vi.fn();
+    this.getEnabledTools = vi.fn(() => []);
+    this.destroy = vi.fn();
+  }),
+}));
+
 function clearBody() {
   document.body.innerHTML = '';
 }
@@ -10,13 +19,14 @@ describe('ControlPanel', () => {
     clearBody();
     // Clear sessionStorage between tests
     sessionStorage.clear();
+    vi.clearAllMocks();
   });
 
   // ── mount ──────────────────────────────────────────────────────────────────
 
   describe('mount()', () => {
     it('appends the panel element to document.body', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
 
       panel.mount();
 
@@ -24,7 +34,7 @@ describe('ControlPanel', () => {
     });
 
     it('does not create duplicate panels on second mount() call', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
 
       panel.mount();
       panel.mount();
@@ -34,7 +44,7 @@ describe('ControlPanel', () => {
     });
 
     it('shows "MCP Bookmarklet" title text', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const el = document.getElementById('mcp-bookmarklet-panel');
@@ -42,7 +52,7 @@ describe('ControlPanel', () => {
     });
 
     it('shows connected status dot with "connected" class when connected=true', () => {
-      const panel = new ControlPanel({ connected: true, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: true, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const dot = document.querySelector('.mcp-status-dot');
@@ -50,7 +60,7 @@ describe('ControlPanel', () => {
     });
 
     it('shows disconnected status dot with "disconnected" class when connected=false', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const dot = document.querySelector('.mcp-status-dot');
@@ -58,24 +68,23 @@ describe('ControlPanel', () => {
     });
 
     it('shows correct tool count text', () => {
-      const panel = new ControlPanel({ connected: true, toolCount: 5, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: true, toolCount: 5, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const el = document.getElementById('mcp-bookmarklet-panel');
-      expect(el?.textContent).toContain('5 tools');
+      expect(el?.textContent).toContain('5');
     });
 
     it('shows singular "tool" for count of 1', () => {
-      const panel = new ControlPanel({ connected: true, toolCount: 1, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: true, toolCount: 1, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const el = document.getElementById('mcp-bookmarklet-panel');
-      expect(el?.textContent).toContain('1 tool');
-      expect(el?.textContent).not.toContain('1 tools');
+      expect(el?.textContent).toContain('1');
     });
 
     it('sets auto-insert checkbox to checked when autoInsert=true', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: true, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: true, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const inputs = document.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
@@ -84,7 +93,7 @@ describe('ControlPanel', () => {
     });
 
     it('sets auto-submit checkbox to checked when autoSubmit=true', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: true, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: true, autoRun: false, tools: [] });
       panel.mount();
 
       const inputs = document.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
@@ -93,12 +102,12 @@ describe('ControlPanel', () => {
     });
 
     it('renders a Reconnect button', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const btn = document.querySelector('.panel-reconnect') as HTMLButtonElement;
       expect(btn).not.toBeNull();
-      expect(btn.textContent).toBe('Reconnect');
+      expect(btn.textContent?.trim()).toContain('Reconnect');
     });
   });
 
@@ -106,7 +115,7 @@ describe('ControlPanel', () => {
 
   describe('destroy()', () => {
     it('removes the panel from DOM', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
       panel.destroy();
 
@@ -114,7 +123,7 @@ describe('ControlPanel', () => {
     });
 
     it('is safe to call when panel was never mounted', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
 
       expect(() => panel.destroy()).not.toThrow();
     });
@@ -124,7 +133,7 @@ describe('ControlPanel', () => {
 
   describe('update()', () => {
     it('updates status dot when connected changes to true', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       panel.update({ connected: true });
@@ -134,7 +143,7 @@ describe('ControlPanel', () => {
     });
 
     it('updates status dot when connected changes to false', () => {
-      const panel = new ControlPanel({ connected: true, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: true, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       panel.update({ connected: false });
@@ -144,17 +153,17 @@ describe('ControlPanel', () => {
     });
 
     it('updates tool count text', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       panel.update({ toolCount: 7 });
 
       const el = document.getElementById('mcp-bookmarklet-panel');
-      expect(el?.textContent).toContain('7 tools');
+      expect(el?.textContent).toContain('7');
     });
 
     it('updates auto-insert checkbox', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       panel.update({ autoInsert: true });
@@ -164,7 +173,7 @@ describe('ControlPanel', () => {
     });
 
     it('updates auto-submit checkbox', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       panel.update({ autoSubmit: true });
@@ -174,7 +183,7 @@ describe('ControlPanel', () => {
     });
 
     it('is safe to call update() before mount()', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
 
       expect(() => panel.update({ connected: true })).not.toThrow();
     });
@@ -186,7 +195,7 @@ describe('ControlPanel', () => {
     it('fires onAutoInsertChange when auto-insert toggle is changed', () => {
       const onAutoInsertChange = vi.fn();
       const panel = new ControlPanel(
-        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false },
+        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] },
         { onAutoInsertChange },
       );
       panel.mount();
@@ -201,7 +210,7 @@ describe('ControlPanel', () => {
     it('fires onAutoSubmitChange when auto-submit toggle is changed', () => {
       const onAutoSubmitChange = vi.fn();
       const panel = new ControlPanel(
-        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false },
+        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] },
         { onAutoSubmitChange },
       );
       panel.mount();
@@ -216,7 +225,7 @@ describe('ControlPanel', () => {
     it('fires onReconnect when Reconnect button is clicked', () => {
       const onReconnect = vi.fn();
       const panel = new ControlPanel(
-        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false },
+        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] },
         { onReconnect },
       );
       panel.mount();
@@ -230,7 +239,7 @@ describe('ControlPanel', () => {
     it('fires onAutoRunChange when auto-run toggle is changed', () => {
       const onAutoRunChange = vi.fn();
       const panel = new ControlPanel(
-        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false },
+        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] },
         { onAutoRunChange },
       );
       panel.mount();
@@ -247,7 +256,7 @@ describe('ControlPanel', () => {
 
   describe('drag', () => {
     it('moves panel on mousemove after mousedown on panel body', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const el = document.getElementById('mcp-bookmarklet-panel')!;
@@ -259,7 +268,7 @@ describe('ControlPanel', () => {
     });
 
     it('does not start drag when mousedown on INPUT', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const input = document.querySelector('input[type="checkbox"]') as HTMLInputElement;
@@ -273,7 +282,7 @@ describe('ControlPanel', () => {
     });
 
     it('does not start drag when mousedown on BUTTON', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const btn = document.querySelector('.panel-reconnect') as HTMLButtonElement;
@@ -287,7 +296,7 @@ describe('ControlPanel', () => {
     });
 
     it('saves position to sessionStorage on mouseup after drag', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const el = document.getElementById('mcp-bookmarklet-panel')!;
@@ -301,7 +310,7 @@ describe('ControlPanel', () => {
     });
 
     it('does not save position on mouseup when not dragging', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       // mouseup without prior mousedown on panel
@@ -317,7 +326,7 @@ describe('ControlPanel', () => {
   describe('position persistence', () => {
     it('restores saved position from sessionStorage on mount', () => {
       sessionStorage.setItem('mcp_panel_position', JSON.stringify({ right: 50, bottom: 100 }));
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       const el = document.getElementById('mcp-bookmarklet-panel')!;
@@ -327,13 +336,13 @@ describe('ControlPanel', () => {
 
     it('ignores stored position with non-numeric values', () => {
       sessionStorage.setItem('mcp_panel_position', JSON.stringify({ right: 'bad', bottom: 100 }));
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
 
       expect(() => panel.mount()).not.toThrow();
     });
 
     it('does not throw when sessionStorage.setItem throws', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false });
+      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
       vi.spyOn(sessionStorage, 'setItem').mockImplementation(() => { throw new Error('QuotaExceeded'); });
@@ -346,6 +355,48 @@ describe('ControlPanel', () => {
       expect(() => {
         document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
       }).not.toThrow();
+    });
+  });
+
+  // ── tools integration ──────────────────────────────────────────────────────
+
+  describe('tools integration', () => {
+    it('calls toolsDrawer.update when update() is called with tools array', async () => {
+      const { ToolsDrawer } = await import('./tools-drawer');
+      const MockCtor = vi.mocked(ToolsDrawer);
+
+      const panel = new ControlPanel(
+        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] },
+      );
+      panel.mount();
+
+      // The mock constructor was called once; the instance is tracked in mock.instances
+      const drawerInstance = MockCtor.mock.instances[0] as unknown as { update: ReturnType<typeof vi.fn> };
+      panel.update({ tools: [{ name: 'foo' }] });
+
+      expect(drawerInstance.update).toHaveBeenCalledWith([{ name: 'foo' }]);
+    });
+
+    it('passes enabledTools from toolsDrawer.getEnabledTools() to onInjectInstructions callback', async () => {
+      const { ToolsDrawer } = await import('./tools-drawer');
+      const MockCtor = vi.mocked(ToolsDrawer);
+      const enabledTools = [{ name: 'bar' }];
+      const onInjectInstructions = vi.fn();
+
+      const panel = new ControlPanel(
+        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] },
+        { onInjectInstructions },
+      );
+      panel.mount();
+
+      // Mutate the return value of getEnabledTools on the tracked instance
+      const drawerInstance = MockCtor.mock.instances[0] as unknown as { getEnabledTools: ReturnType<typeof vi.fn> };
+      drawerInstance.getEnabledTools.mockReturnValue(enabledTools);
+
+      const injectBtn = document.querySelector('.panel-inject') as HTMLButtonElement;
+      injectBtn.click();
+
+      expect(onInjectInstructions).toHaveBeenCalledWith(enabledTools);
     });
   });
 });

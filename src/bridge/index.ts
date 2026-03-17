@@ -21,6 +21,7 @@ import { DEFAULT_STATIC_URL } from '../shared/protocol';
 
 const GUARD_FLAG = '__MCP_BOOKMARKLET_ACTIVE';
 const STYLE_ID = 'mcp-bookmarklet-styles';
+const FA_LINK_ID = 'mcp-fa-styles';
 const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -49,6 +50,7 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
 
   // Inject styles
   injectStyles();
+  injectFontAwesome();
 
   // Initialize iframe bridge
   // app.html is served from the static server (port 3007), not the MCP proxy (port 3006)
@@ -65,6 +67,7 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
       autoInsert: settings.autoInsert,
       autoSubmit: settings.autoSubmit,
       autoRun: settings.autoRun,
+      tools: [],
     },
     {
       onAutoInsertChange: (enabled) => {
@@ -82,20 +85,12 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
         bridge.init();
         bridge
           .listTools()
-          .then((tools) => panel.update({ toolCount: tools.length }))
+          .then((tools) => panel.update({ tools, toolCount: tools.length }))
           .catch(() => panel.update({ connected: false }));
       },
-      onInjectInstructions: () => {
-        bridge
-          .listTools()
-          .then((tools) => {
-            const text = buildInstructions(tools);
-            attachFile(new File([text], 'mcp-instructions.md', { type: 'text/markdown' }));
-          })
-          .catch(() => {
-            const text = buildInstructions([]);
-            attachFile(new File([text], 'mcp-instructions.md', { type: 'text/markdown' }));
-          });
+      onInjectInstructions: (enabledTools) => {
+        const text = buildInstructions([...enabledTools]);
+        attachFile(new File([text], 'mcp-instructions.md', { type: 'text/markdown' }));
       },
     },
   );
@@ -110,7 +105,7 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
   bridge
     .listTools()
     .then((tools) => {
-      panel.update({ toolCount: tools.length });
+      panel.update({ tools, toolCount: tools.length });
     })
     .catch(() => {
       console.warn('[MCP Bookmarklet] Could not list tools — server may be offline');
@@ -131,6 +126,16 @@ function injectStyles(): void {
   style.id = STYLE_ID;
   style.textContent = CARD_STYLES + CONTROL_PANEL_STYLES;
   document.head.appendChild(style);
+}
+
+function injectFontAwesome(): void {
+  if (document.getElementById(FA_LINK_ID)) return;
+  const link = document.createElement('link');
+  link.id = FA_LINK_ID;
+  link.rel = 'stylesheet';
+  link.crossOrigin = 'anonymous';
+  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
+  document.head.appendChild(link);
 }
 
 // ── Result formatting ─────────────────────────────────────────────────────────
