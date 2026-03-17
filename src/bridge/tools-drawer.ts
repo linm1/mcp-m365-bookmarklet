@@ -206,12 +206,7 @@ export class ToolsDrawer {
     nameSpan.className = 'panel-tool-name';
     nameSpan.textContent = tool.name;
 
-    const descSpan = document.createElement('span');
-    descSpan.className = 'panel-tool-desc';
-    descSpan.textContent = tool.description ?? '';
-
     info.appendChild(nameSpan);
-    info.appendChild(descSpan);
 
     const enabled = isToolEnabled(tool.name, this.toolEnabledState);
     const toggle = this.buildToggle(enabled, (checked) => {

@@ -199,27 +199,26 @@ describe('update(tools) — rendering', () => {
     expect(nameEl?.textContent).toBe('send-mail');
   });
 
-  it('renders tool description inside .panel-tool-desc span', () => {
+  it('does NOT render a .panel-tool-desc element in tool rows', () => {
     const drawer = new ToolsDrawer();
     const container = makeContainer();
     drawer.mount(container);
 
     drawer.update([TOOL_MAIL]);
 
-    const descEl = container.querySelector('.panel-tool-desc');
-    expect(descEl?.textContent).toBe('Sends an email');
+    expect(container.querySelector('.panel-tool-desc')).toBeNull();
   });
 
-  it('renders empty description when tool has no description', () => {
+  it('renders only tool name inside .panel-tool-info, no description', () => {
     const drawer = new ToolsDrawer();
     const container = makeContainer();
     drawer.mount(container);
 
-    const tool = makeToolWithServer('bare-tool', 'TestServer');
-    drawer.update([tool]);
+    drawer.update([TOOL_MAIL]);
 
-    const descEl = container.querySelector('.panel-tool-desc');
-    expect(descEl?.textContent).toBe('');
+    const info = container.querySelector('.panel-tool-info');
+    expect(info?.childElementCount).toBe(1);           // only the name span
+    expect(info?.querySelector('.panel-tool-name')?.textContent).toBe('send-mail');
   });
 
   it('falls back to "MCP Server" as server name when tool has no serverName', () => {
