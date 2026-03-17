@@ -175,11 +175,17 @@ export class ToolsDrawer {
     const row = document.createElement('div');
     row.className = 'panel-server-row';
 
+    const left = document.createElement('div');
+    left.className = 'panel-server-name';
+
     const serverIcon = document.createElement('i');
     serverIcon.className = 'fa-solid fa-server';
 
     const nameSpan = document.createElement('span');
     nameSpan.textContent = serverName;
+
+    left.appendChild(serverIcon);
+    left.appendChild(nameSpan);
 
     const allEnabled = serverTools.every((t) => isToolEnabled(t.name, this.toolEnabledState));
 
@@ -187,8 +193,7 @@ export class ToolsDrawer {
       this.handleServerToggle(serverName, serverTools, checked);
     });
 
-    row.appendChild(serverIcon);
-    row.appendChild(nameSpan);
+    row.appendChild(left);
     row.appendChild(toggle);
 
     return row;
