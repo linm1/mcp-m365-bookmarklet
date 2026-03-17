@@ -359,20 +359,16 @@ export const CONTROL_PANEL_STYLES = `
 }
 .panel-server-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 5px 0; margin-top: 6px; font-size: 12px; font-weight: 600;
-  color: #1a73e8; border-bottom: 1px solid rgba(0,0,0,0.06);
+  padding: 6px 0 4px; margin-top: 8px; font-size: 12px; font-weight: 700;
+  color: #1a73e8; border-bottom: 1px solid rgba(26,115,232,0.25);
 }
-.panel-server-name { display: flex; align-items: center; gap: 5px; }
+.panel-server-name { display: flex; align-items: center; gap: 5px; flex: 1; }
 .panel-tool-row {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 3px 0 3px 12px; gap: 6px;
+  padding: 3px 0 3px 16px; gap: 6px;
 }
-.panel-tool-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.panel-tool-info { display: flex; flex: 1; min-width: 0; align-items: center; }
 .panel-tool-name { font-size: 12px; color: #202124; }
-.panel-tool-desc {
-  font-size: 11px; color: #5f6368;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
 
 /* ── Half-size toggles inside the drawer ───────────────────────────── */
 .panel-drawer-body .panel-toggle { width: 18px; height: 10px; }
@@ -399,7 +395,6 @@ export const CONTROL_PANEL_STYLES = `
   .panel-drawer-search { border-color: rgba(255,255,255,0.1); }
   .panel-server-row { color: #8ab4f8; border-bottom-color: rgba(255,255,255,0.06); }
   .panel-tool-name { color: #e8eaed; }
-  .panel-tool-desc { color: #9aa0a6; }
   .panel-inject { background: #8ab4f8; color: #202124; }
   .panel-inject:hover { background: #7ba9f0; }
   .panel-close-btn { color: #9aa0a6; }
