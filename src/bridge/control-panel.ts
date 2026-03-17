@@ -32,6 +32,7 @@ export interface PanelCallbacks {
   readonly onAutoRunChange?: (enabled: boolean) => void;
   readonly onReconnect?: () => void;
   readonly onInjectInstructions?: (enabledTools: readonly Tool[]) => void;
+  readonly onClose?: () => void;
 }
 
 interface PanelPosition {
@@ -147,9 +148,21 @@ export class ControlPanel {
     this.toolCountEl.className = 'panel-tool-count';
     this.toolCountEl.textContent = String(this.state.toolCount);
 
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'panel-close-btn';
+    closeBtn.setAttribute('aria-label', 'Close panel');
+    const closeIcon = document.createElement('i');
+    closeIcon.className = 'fa-solid fa-xmark';
+    closeBtn.appendChild(closeIcon);
+    closeBtn.addEventListener('click', () => {
+      this.callbacks.onClose?.();
+      this.destroy();
+    });
+
     header.appendChild(this.statusIcon);
     header.appendChild(title);
     header.appendChild(this.toolCountEl);
+    header.appendChild(closeBtn);
 
     return header;
   }

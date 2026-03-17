@@ -4,6 +4,9 @@ node_modules/
 # Build output
 dist/
 
+# Auto-generated FA inline module
+src/bridge/fa-inline.ts
+
 # Test coverage
 coverage/
 

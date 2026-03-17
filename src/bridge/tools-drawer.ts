@@ -90,7 +90,7 @@ export class ToolsDrawer {
     header.className = 'panel-drawer-header';
 
     const iconList = document.createElement('i');
-    iconList.className = 'fa-solid fa-list-tree';
+    iconList.className = 'fa-solid fa-screwdriver-wrench';
 
     const label = document.createElement('span');
     label.textContent = 'Tools';

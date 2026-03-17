@@ -20,6 +20,7 @@ export default defineConfig({
         'src/bridge/index.ts',
         'src/app/app.ts',
         'src/bridge/styles.ts',
+        'src/bridge/fa-inline.ts',
       ],
     },
   },

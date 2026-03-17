@@ -8,6 +8,7 @@
  */
 
 import { CARD_STYLES, CONTROL_PANEL_STYLES } from './styles';
+import { FA_INLINE_CSS } from './fa-inline';
 import { IframeBridge } from './iframe-bridge';
 import { ControlPanel } from './control-panel';
 import { renderFunctionCard, updateCardResult, updateCardLoading } from './renderer';
@@ -130,12 +131,10 @@ function injectStyles(): void {
 
 function injectFontAwesome(): void {
   if (document.getElementById(FA_LINK_ID)) return;
-  const link = document.createElement('link');
-  link.id = FA_LINK_ID;
-  link.rel = 'stylesheet';
-  link.crossOrigin = 'anonymous';
-  link.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css';
-  document.head.appendChild(link);
+  const style = document.createElement('style');
+  style.id = FA_LINK_ID;
+  style.textContent = FA_INLINE_CSS;
+  document.head.appendChild(style);
 }
 
 // ── Result formatting ─────────────────────────────────────────────────────────
