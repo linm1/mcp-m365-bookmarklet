@@ -30,6 +30,11 @@ const TOOL_MAIL = makeToolWithServer('send-mail', 'Exchange', 'Sends an email');
 const TOOL_CALENDAR = makeToolWithServer('create-event', 'Exchange', 'Creates a calendar event');
 const TOOL_FILES = makeToolWithServer('upload-file', 'SharePoint', 'Uploads a file');
 
+// Real-format tools — name is dot-namespaced, no explicit serverName
+const TOOL_DC_READ   = makeTool('desktop-commander.read_file');
+const TOOL_DC_CONFIG = makeTool('desktop-commander.get_config');
+const TOOL_SP_UPLOAD = makeTool('sharepoint.upload_file');
+
 function makeContainer(): HTMLElement {
   const div = document.createElement('div');
   document.body.appendChild(div);
@@ -578,5 +583,64 @@ describe('edge cases', () => {
 
   it('constructor works with no arguments', () => {
     expect(() => new ToolsDrawer()).not.toThrow();
+  });
+});
+
+// ── dot-namespaced tool name parsing ──────────────────────────────────────────
+
+describe('groupByServer() — name parsing', () => {
+  it('groups dot-namespaced tools by the prefix before the first dot', () => {
+    const drawer = new ToolsDrawer();
+    const container = makeContainer();
+    drawer.mount(container);
+
+    drawer.update([TOOL_DC_READ, TOOL_DC_CONFIG, TOOL_SP_UPLOAD]);
+
+    // desktop-commander + sharepoint = 2 server rows
+    expect(container.querySelectorAll('.panel-server-row')).toHaveLength(2);
+  });
+
+  it('displays the server prefix (not full name) as the server row label', () => {
+    const drawer = new ToolsDrawer();
+    const container = makeContainer();
+    drawer.mount(container);
+
+    drawer.update([TOOL_DC_READ]);
+
+    const serverRow = container.querySelector('.panel-server-row');
+    expect(serverRow?.textContent).toContain('desktop-commander');
+  });
+
+  it('displays only the short name (after the dot) in the tool row', () => {
+    const drawer = new ToolsDrawer();
+    const container = makeContainer();
+    drawer.mount(container);
+
+    drawer.update([TOOL_DC_READ]);
+
+    const nameEl = container.querySelector('.panel-tool-name');
+    expect(nameEl?.textContent).toBe('read_file');
+  });
+
+  it('falls back to "MCP Server" group for tools without a dot in their name', () => {
+    const drawer = new ToolsDrawer();
+    const container = makeContainer();
+    drawer.mount(container);
+
+    drawer.update([makeTool('bare_tool')]);
+
+    const serverRow = container.querySelector('.panel-server-row');
+    expect(serverRow?.textContent).toContain('MCP Server');
+  });
+
+  it('shows the full name as short name for tools without a dot', () => {
+    const drawer = new ToolsDrawer();
+    const container = makeContainer();
+    drawer.mount(container);
+
+    drawer.update([makeTool('bare_tool')]);
+
+    const nameEl = container.querySelector('.panel-tool-name');
+    expect(nameEl?.textContent).toBe('bare_tool');
   });
 });

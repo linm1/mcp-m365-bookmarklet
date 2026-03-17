@@ -209,7 +209,7 @@ export class ToolsDrawer {
 
     const nameSpan = document.createElement('span');
     nameSpan.className = 'panel-tool-name';
-    nameSpan.textContent = tool.name;
+    nameSpan.textContent = this.parseToolName(tool.name).short;
 
     info.appendChild(nameSpan);
 
@@ -309,7 +309,7 @@ export class ToolsDrawer {
   ): Map<string, readonly ToolWithServer[]> {
     const map = new Map<string, ToolWithServer[]>();
     for (const tool of tools) {
-      const key = tool.serverName ?? 'MCP Server';
+      const key = tool.serverName ?? this.parseToolName(tool.name).server;
       const existing = map.get(key);
       if (existing) {
         map.set(key, [...existing, tool]);
@@ -318,5 +318,16 @@ export class ToolsDrawer {
       }
     }
     return map;
+  }
+
+  /**
+   * Splits a dot-namespaced tool name into server and short-name parts.
+   * "desktop-commander.read_file" → { server: "desktop-commander", short: "read_file" }
+   * "bare_tool"                   → { server: "MCP Server",        short: "bare_tool" }
+   */
+  private parseToolName(name: string): { server: string; short: string } {
+    const dot = name.indexOf('.');
+    if (dot === -1) return { server: 'MCP Server', short: name };
+    return { server: name.slice(0, dot), short: name.slice(dot + 1) };
   }
 }
