@@ -107,9 +107,8 @@ export class ControlPanel {
       this.autoRunToggle.checked = this.state.autoRun;
     }
 
-    // Update inject button count when toolCount changes (drawer not yet populated)
-    if (newState.toolCount !== undefined && this.injectCountText) {
-      this.injectCountText.textContent = ` Inject Instructions (${this.state.toolCount})`;
+    if (newState.toolCount !== undefined && this.toolCountEl) {
+      this.toolCountEl.textContent = String(this.state.toolCount);
     }
 
     if (newState.tools !== undefined) {
@@ -247,8 +246,8 @@ export class ControlPanel {
     injectIcon.className = 'fa-solid fa-file-lines';
     injectBtn.appendChild(injectIcon);
 
-    // Use toolCount from state as the initial count (drawer will update via callback)
-    const initialCount = this.state.toolCount;
+    // Initial count is 0; drawer fires onEnabledCountChange once tools load
+    const initialCount = 0;
     this.injectCountText = document.createTextNode(
       ` Inject Instructions (${initialCount})`,
     );

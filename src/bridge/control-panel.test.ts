@@ -399,4 +399,23 @@ describe('ControlPanel', () => {
       expect(onInjectInstructions).toHaveBeenCalledWith(enabledTools);
     });
   });
+
+  // ── inject button count ────────────────────────────────────────────────────
+
+  describe('inject button count', () => {
+    it('does NOT show toolCount total when tools are updated — count comes from drawer callback', () => {
+      const panel = new ControlPanel(
+        { connected: true, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] },
+      );
+      panel.mount();
+
+      // Update with 3 tools and toolCount=3
+      panel.update({ toolCount: 3 });
+
+      // Without the drawer callback firing, button must NOT show (3)
+      // (the toolCount update should no longer overwrite the inject button text)
+      const injectBtn = document.querySelector('.panel-inject');
+      expect(injectBtn?.textContent).not.toContain('(3)');
+    });
+  });
 });

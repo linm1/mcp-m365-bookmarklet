@@ -644,3 +644,32 @@ describe('groupByServer() — name parsing', () => {
     expect(nameEl?.textContent).toBe('bare_tool');
   });
 });
+
+// ── onEnabledCountChange fires on update() ────────────────────────────────────
+
+describe('update() — fires onEnabledCountChange', () => {
+  it('fires onEnabledCountChange with enabled count when update() is called', () => {
+    const onEnabledCountChange = vi.fn();
+    const drawer = new ToolsDrawer({ onEnabledCountChange });
+    const container = makeContainer();
+    drawer.mount(container);
+
+    drawer.update([TOOL_DC_READ, TOOL_DC_CONFIG, TOOL_SP_UPLOAD]);
+
+    // All tools enabled by default (mock returns true for all)
+    expect(onEnabledCountChange).toHaveBeenCalledWith(3);
+  });
+
+  it('fires onEnabledCountChange again on subsequent update() calls', () => {
+    const onEnabledCountChange = vi.fn();
+    const drawer = new ToolsDrawer({ onEnabledCountChange });
+    const container = makeContainer();
+    drawer.mount(container);
+
+    drawer.update([TOOL_DC_READ, TOOL_DC_CONFIG]);
+    expect(onEnabledCountChange).toHaveBeenLastCalledWith(2);
+
+    drawer.update([TOOL_DC_READ]);
+    expect(onEnabledCountChange).toHaveBeenLastCalledWith(1);
+  });
+});

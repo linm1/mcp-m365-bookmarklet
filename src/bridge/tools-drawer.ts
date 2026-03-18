@@ -64,6 +64,7 @@ export class ToolsDrawer {
     this.tools = tools as readonly ToolWithServer[];
     this.renderScrollContent();
     this.updateBadge();
+    this.callbacks.onEnabledCountChange?.(this.getEnabledTools().length);
   }
 
   /** Returns the subset of known tools that are currently enabled. */
