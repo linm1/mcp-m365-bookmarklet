@@ -40,8 +40,9 @@ The instructions regarding function calls specify that:
 - Ask user to execute the function calls by the help of user and get back the result of the function execution.
 
 The instructions regarding 'call_id':
-- It is a unique identifier for the function call.
-- It is a number that is incremented by 1 for each new function call, starting from 1.
+- It is a unique identifier for the function call within a single response.
+- It starts at 1 in each response and increments by 1 for each additional function call in that response.
+- Reset to 1 at the start of each new response — do not carry the counter across responses.
 
 You can ask user to invoke one or more functions by writing a JSON Lines code block like the following as part of your reply to the user, MAKE SURE TO INVOKE ONLY ONE FUNCTION AT A TIME:
 
@@ -158,6 +159,8 @@ IMPORTANT OVERRIDE FOR M365 COPILOT — HIGHEST PRIORITY, SUPERSEDES ALL ABOVE:
 - After outputting the JSON lines, STOP and wait for <function_results> to be provided
 - DO NOT generate or mock <function_results> yourself
 - Only use the tools listed in AVAILABLE TOOLS above. Do not invoke any other tools or functions.
+- Integer parameters such as "offset" use 0-based indexing ("line 5" = offset 4). Output as unquoted integer.
+- Time parameters such as "timeout_ms" are in milliseconds (1 second = 1000). Output as unquoted integer.
 `;
 
 // ── Builder ────────────────────────────────────────────────────────────────────
