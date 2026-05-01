@@ -135,18 +135,7 @@ ClassName | Custom class | User
 
 // ── M365-specific overrides ────────────────────────────────────────────────────
 
-const M365_PLAIN_TEXT_OVERRIDE = `IMPORTANT: Output function call JSON objects as PLAIN TEXT with NO code fence wrapper.
-
-Example of correct output (plain text, no backtick fences):
-
-{"type": "function_call_start", "name": "function_name", "call_id": 1}
-{"type": "description", "text": "Short 1 line of what this function does"}
-{"type": "parameter", "key": "parameter_1", "value": "value_1"}
-{"type": "parameter", "key": "parameter_2", "value": "value_2"}
-{"type": "function_call_end", "call_id": 1}
-
-Do NOT wrap these lines in \`\`\` code fences of any kind. Output them as raw plain text.
-Each JSON object must be on a single line with no nested braces in parameter values.
+const M365_PLAIN_TEXT_OVERRIDE = `IMPORTANT: Output function call JSON objects as PLAIN TEXT with NO code fence wrapper. Do NOT wrap these lines in \`\`\` code fences of any kind. Output them as raw plain text. Each JSON object must be on a single line.
 
 `;
 
@@ -168,7 +157,7 @@ IMPORTANT OVERRIDE FOR M365 COPILOT — HIGHEST PRIORITY, SUPERSEDES ALL ABOVE:
 - A browser extension detects these plain text JSON lines and executes the function call
 - After outputting the JSON lines, STOP and wait for <function_results> to be provided
 - DO NOT generate or mock <function_results> yourself
-- All other tools and functions are disabled except for the ones available to SuperAssistant
+- Only use the tools listed in AVAILABLE TOOLS above. Do not invoke any other tools or functions.
 `;
 
 // ── Builder ────────────────────────────────────────────────────────────────────
