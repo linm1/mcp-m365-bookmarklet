@@ -120,6 +120,11 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
   startExtractor(bridge);
 
   console.log('[MCP Bookmarklet] Activated on', hostname);
+  const panelEl = document.getElementById('mcp-bookmarklet-panel');
+  if (panelEl) {
+    const r = panelEl.getBoundingClientRect();
+    console.info(`[MCP Bookmarklet] Panel at bottom-right (${Math.round(r.left)},${Math.round(r.top)})px. If hidden, run: localStorage.removeItem('mcp_panel_position'); location.reload()`);
+  }
 })();
 
 // ── Styles ────────────────────────────────────────────────────────────────────

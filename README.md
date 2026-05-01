@@ -94,15 +94,17 @@ Note: `serve_https.py` binds to `0.0.0.0` by default (all interfaces); on a shar
 Create a new browser bookmark with the following URL:
 
 ```javascript
-javascript:void(document.head.appendChild(Object.assign(document.createElement('script'),{src:'https://localhost:3443/bridge.js'})))
+javascript:void(document.head.appendChild(Object.assign(document.createElement('script'),{src:'https://localhost:3443/bridge.js?t='+Date.now()})))
 ```
+
+The `?t=`+`Date.now()` query string is a cache-buster — it forces the browser to refetch `bridge.js` on every click instead of serving a stale copy. Useful during development when you're rebuilding the bundle. The MCP server itself is unaffected; only the static asset is reloaded.
 
 ### 4. Activate
 
 1. Start your MCP server on `localhost:3006`.
 2. Visit `https://localhost:3443/` once in your browser and accept the self-signed certificate warning.
 3. Navigate to [M365 Copilot Chat](https://m365.cloud.microsoft).
-4. Click the bookmarklet — a small control panel appears in the top-right corner showing connection status and available tools.
+4. Click the bookmarklet — a small control panel appears in the **bottom-right corner** showing connection status and available tools. The panel is draggable and saves its position to `localStorage`. If you can't find it, run this in DevTools console to reset its position: `localStorage.removeItem('mcp_panel_position'); location.reload();`
 
 ---
 
