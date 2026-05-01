@@ -70,6 +70,25 @@ npm run serve:https
 
 Keep this running whenever you use the bookmarklet.
 
+**Alternative: Python-only serving (no mkcert / no Node http-server required)**
+
+If you have Python 3 and OpenSSL but not `mkcert`, generate a self-signed cert once:
+
+```bash
+bash scripts/gen_cert.sh
+```
+
+Then serve each session with:
+
+```bash
+python scripts/serve_https.py
+# or: npm run serve:py
+```
+
+This serves the same `dist/` folder on the same `https://localhost:3443`, so the bookmarklet URL and all hardcoded constants stay unchanged. The existing `mkcert` / `npm run serve:https` path is still fully supported — both approaches share the same cert filenames (`localhost+1.pem` / `localhost+1-key.pem`).
+
+Note: `serve_https.py` binds to `0.0.0.0` by default (all interfaces); on a shared or untrusted network pass `--host 127.0.0.1` to restrict it to localhost only.
+
 ### 3. Create the bookmarklet
 
 Create a new browser bookmark with the following URL:
