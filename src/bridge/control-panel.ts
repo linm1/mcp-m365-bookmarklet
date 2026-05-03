@@ -1,10 +1,16 @@
 /**
- * Floating Control Panel.
+ * Floating Control Panel — Concept C: Drawer Overlay.
  *
- * Renders a draggable panel in the bottom-right corner of the M365 page
- * with connection status, auto-insert/submit toggles, tool count badge,
- * and a Reconnect button.
+ * Renders a draggable panel in the bottom-right corner of the M365 page with:
+ *   - FA icon status indicator (sun=connected, moon=disconnected)
+ *   - Horizontal automation toggle row (Insert / Submit / Run)
+ *   - ToolsDrawer sub-component (collapsible tool list)
+ *   - Inject Instructions button
+ *   - Reconnect button
  */
+
+import type { Tool } from '../shared/protocol';
+import { ToolsDrawer } from './tools-drawer';
 
 const PANEL_ID = 'mcp-bookmarklet-panel';
 const POSITION_KEY = 'mcp_panel_position';
@@ -17,6 +23,7 @@ export interface PanelState {
   readonly autoInsert: boolean;
   readonly autoSubmit: boolean;
   readonly autoRun: boolean;
+  readonly tools: readonly Tool[];
 }
 
 export interface PanelCallbacks {
@@ -24,7 +31,8 @@ export interface PanelCallbacks {
   readonly onAutoSubmitChange?: (enabled: boolean) => void;
   readonly onAutoRunChange?: (enabled: boolean) => void;
   readonly onReconnect?: () => void;
-  readonly onInjectInstructions?: () => void;
+  readonly onInjectInstructions?: (enabledTools: readonly Tool[]) => void;
+  readonly onClose?: () => void;
 }
 
 interface PanelPosition {
@@ -36,17 +44,22 @@ interface PanelPosition {
 
 export class ControlPanel {
   private panel: HTMLElement | null = null;
-  private statusDot: HTMLElement | null = null;
+  private statusIcon: HTMLElement | null = null;
   private toolCountEl: HTMLElement | null = null;
   private autoInsertToggle: HTMLInputElement | null = null;
   private autoSubmitToggle: HTMLInputElement | null = null;
   private autoRunToggle: HTMLInputElement | null = null;
+  private injectCountText: Text | null = null;
   private state: PanelState;
   private readonly callbacks: PanelCallbacks;
+  private readonly toolsDrawer: ToolsDrawer;
 
   constructor(initialState: PanelState, callbacks: PanelCallbacks = {}) {
     this.state = initialState;
     this.callbacks = callbacks;
+    this.toolsDrawer = new ToolsDrawer({
+      onEnabledCountChange: (count) => this.updateInjectCount(count),
+    });
   }
 
   /** Create and append the panel to document.body. */
@@ -61,26 +74,25 @@ export class ControlPanel {
 
   /** Remove the panel from DOM. */
   destroy(): void {
+    this.toolsDrawer.destroy();
     this.panel?.remove();
     this.panel = null;
-    this.statusDot = null;
+    this.statusIcon = null;
     this.toolCountEl = null;
     this.autoInsertToggle = null;
     this.autoSubmitToggle = null;
     this.autoRunToggle = null;
+    this.injectCountText = null;
   }
 
   /** Update the displayed state without rebuilding the panel. */
   update(newState: Partial<PanelState>): void {
     this.state = { ...this.state, ...newState };
 
-    if (this.statusDot) {
-      this.statusDot.className =
-        'mcp-status-dot ' + (this.state.connected ? 'connected' : 'disconnected');
-    }
-
-    if (this.toolCountEl) {
-      this.toolCountEl.textContent = `${this.state.toolCount} tool${this.state.toolCount !== 1 ? 's' : ''} available`;
+    if (this.statusIcon) {
+      this.statusIcon.className = this.state.connected
+        ? 'fa-solid fa-sun mcp-status-dot connected'
+        : 'fa-solid fa-moon mcp-status-dot disconnected';
     }
 
     if (this.autoInsertToggle) {
@@ -94,6 +106,15 @@ export class ControlPanel {
     if (this.autoRunToggle) {
       this.autoRunToggle.checked = this.state.autoRun;
     }
+
+    // Update inject button count when toolCount changes (drawer not yet populated)
+    if (newState.toolCount !== undefined && this.injectCountText) {
+      this.injectCountText.textContent = ` Inject Instructions (${this.state.toolCount})`;
+    }
+
+    if (newState.tools !== undefined) {
+      this.toolsDrawer.update(newState.tools);
+    }
   }
 
   // ── Private ───────────────────────────────────────────────────────────────
@@ -102,98 +123,162 @@ export class ControlPanel {
     const panel = document.createElement('div');
     panel.id = PANEL_ID;
 
-    // Header
-    const header = document.createElement('div');
-    header.className = 'panel-header';
-
-    this.statusDot = document.createElement('span');
-    this.statusDot.className =
-      'mcp-status-dot ' + (this.state.connected ? 'connected' : 'disconnected');
-
-    const title = document.createElement('span');
-    title.textContent = 'MCP Bookmarklet';
-
-    header.appendChild(this.statusDot);
-    header.appendChild(title);
-    panel.appendChild(header);
-
-    // Auto-insert toggle
-    panel.appendChild(
-      this.buildToggleRow('Auto Insert', this.state.autoInsert, (checked) => {
-        this.autoInsertToggle = checked ? (this.autoInsertToggle ?? null) : null;
-        this.callbacks.onAutoInsertChange?.(checked);
-      }, (input) => { this.autoInsertToggle = input; }),
-    );
-
-    // Auto-submit toggle
-    panel.appendChild(
-      this.buildToggleRow('Auto Submit', this.state.autoSubmit, (checked) => {
-        this.callbacks.onAutoSubmitChange?.(checked);
-      }, (input) => { this.autoSubmitToggle = input; }),
-    );
-
-    // Auto-run toggle
-    panel.appendChild(
-      this.buildToggleRow('Auto Run', this.state.autoRun, (checked) => {
-        this.callbacks.onAutoRunChange?.(checked);
-      }, (input) => { this.autoRunToggle = input; }),
-    );
-
-    // Inject Instructions button
-    const injectBtn = document.createElement('button');
-    injectBtn.className = 'panel-inject';
-    injectBtn.textContent = '📋 Inject Instructions';
-    injectBtn.addEventListener('click', () => this.callbacks.onInjectInstructions?.());
-    panel.appendChild(injectBtn);
-
-    // Tool count
-    this.toolCountEl = document.createElement('div');
-    this.toolCountEl.className = 'panel-tool-count';
-    this.toolCountEl.textContent =
-      `${this.state.toolCount} tool${this.state.toolCount !== 1 ? 's' : ''} available`;
-    panel.appendChild(this.toolCountEl);
-
-    // Reconnect button
-    const reconnectBtn = document.createElement('button');
-    reconnectBtn.className = 'panel-reconnect';
-    reconnectBtn.textContent = 'Reconnect';
-    reconnectBtn.addEventListener('click', () => this.callbacks.onReconnect?.());
-    panel.appendChild(reconnectBtn);
+    panel.appendChild(this.buildHeader());
+    panel.appendChild(this.buildAutomationRow());
+    this.toolsDrawer.mount(panel);
+    panel.appendChild(this.buildInjectButton());
+    panel.appendChild(this.buildReconnectButton());
 
     return panel;
   }
 
-  private buildToggleRow(
-    label: string,
+  private buildHeader(): HTMLElement {
+    const header = document.createElement('div');
+    header.className = 'panel-header';
+
+    this.statusIcon = document.createElement('i');
+    this.statusIcon.className = this.state.connected
+      ? 'fa-solid fa-sun mcp-status-dot connected'
+      : 'fa-solid fa-moon mcp-status-dot disconnected';
+
+    const title = document.createElement('span');
+    title.textContent = 'MCP Bookmarklet';
+
+    this.toolCountEl = document.createElement('span');
+    this.toolCountEl.className = 'panel-tool-count';
+    this.toolCountEl.textContent = String(this.state.toolCount);
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className = 'panel-close-btn';
+    closeBtn.setAttribute('aria-label', 'Close panel');
+    const closeIcon = document.createElement('i');
+    closeIcon.className = 'fa-solid fa-xmark';
+    closeBtn.appendChild(closeIcon);
+    closeBtn.addEventListener('click', () => {
+      this.callbacks.onClose?.();
+      this.destroy();
+    });
+
+    header.appendChild(this.statusIcon);
+    header.appendChild(title);
+    header.appendChild(this.toolCountEl);
+    header.appendChild(closeBtn);
+
+    return header;
+  }
+
+  private buildAutomationRow(): HTMLElement {
+    const row = document.createElement('div');
+    row.className = 'panel-automation-row';
+
+    // index 0 — Auto Insert
+    row.appendChild(this.buildAutomationItem(
+      'fa-arrow-right-to-bracket',
+      'Auto Insert',
+      this.state.autoInsert,
+      (checked) => this.callbacks.onAutoInsertChange?.(checked),
+      (input) => { this.autoInsertToggle = input; },
+    ));
+
+    // index 1 — Auto Submit
+    row.appendChild(this.buildAutomationItem(
+      'fa-paper-plane',
+      'Auto Submit',
+      this.state.autoSubmit,
+      (checked) => this.callbacks.onAutoSubmitChange?.(checked),
+      (input) => { this.autoSubmitToggle = input; },
+    ));
+
+    // index 2 — Auto Run
+    row.appendChild(this.buildAutomationItem(
+      'fa-bolt',
+      'Auto Run',
+      this.state.autoRun,
+      (checked) => this.callbacks.onAutoRunChange?.(checked),
+      (input) => { this.autoRunToggle = input; },
+    ));
+
+    return row;
+  }
+
+  private buildAutomationItem(
+    iconClass: string,
+    labelText: string,
     checked: boolean,
     onChange: (checked: boolean) => void,
-    onInputCreated?: (input: HTMLInputElement) => void,
+    onInputCreated: (input: HTMLInputElement) => void,
   ): HTMLElement {
-    const row = document.createElement('div');
-    row.className = 'panel-row';
+    const item = document.createElement('div');
+    item.className = 'panel-automation-item';
 
-    const labelEl = document.createElement('label');
-    labelEl.textContent = label;
+    const icon = document.createElement('i');
+    icon.className = `fa-solid ${iconClass} panel-automation-icon`;
 
-    const toggle = document.createElement('label');
-    toggle.className = 'panel-toggle';
+    const label = document.createElement('span');
+    label.textContent = labelText;
+
+    const toggleLabel = document.createElement('label');
+    toggleLabel.className = 'panel-toggle';
 
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.checked = checked;
     input.addEventListener('change', () => onChange(input.checked));
-    onInputCreated?.(input);
+    onInputCreated(input);
 
     const track = document.createElement('span');
     track.className = 'panel-toggle-track';
 
-    toggle.appendChild(input);
-    toggle.appendChild(track);
+    toggleLabel.appendChild(input);
+    toggleLabel.appendChild(track);
 
-    row.appendChild(labelEl);
-    row.appendChild(toggle);
+    item.appendChild(icon);
+    item.appendChild(label);
+    item.appendChild(toggleLabel);
 
-    return row;
+    return item;
+  }
+
+  private buildInjectButton(): HTMLElement {
+    const injectBtn = document.createElement('button');
+    injectBtn.className = 'panel-inject';
+
+    const injectIcon = document.createElement('i');
+    injectIcon.className = 'fa-solid fa-file-lines';
+    injectBtn.appendChild(injectIcon);
+
+    // Use toolCount from state as the initial count (drawer will update via callback)
+    const initialCount = this.state.toolCount;
+    this.injectCountText = document.createTextNode(
+      ` Inject Instructions (${initialCount})`,
+    );
+    injectBtn.appendChild(this.injectCountText);
+
+    injectBtn.addEventListener('click', () => {
+      this.callbacks.onInjectInstructions?.(this.toolsDrawer.getEnabledTools());
+    });
+
+    return injectBtn;
+  }
+
+  private buildReconnectButton(): HTMLElement {
+    const reconnectBtn = document.createElement('button');
+    reconnectBtn.className = 'panel-reconnect';
+
+    const rotIcon = document.createElement('i');
+    rotIcon.className = 'fa-solid fa-rotate';
+    reconnectBtn.appendChild(rotIcon);
+
+    reconnectBtn.appendChild(document.createTextNode(' Reconnect'));
+    reconnectBtn.addEventListener('click', () => this.callbacks.onReconnect?.());
+
+    return reconnectBtn;
+  }
+
+  private updateInjectCount(count: number): void {
+    if (this.injectCountText) {
+      this.injectCountText.textContent = ` Inject Instructions (${count})`;
+    }
   }
 
   private setupDrag(): void {

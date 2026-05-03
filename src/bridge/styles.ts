@@ -211,7 +211,8 @@ export const CONTROL_PANEL_STYLES = `
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 13px;
   color: #202124;
-  min-width: 200px;
+  width: 220px;
+  box-sizing: border-box;
   user-select: none;
   cursor: move;
 }
@@ -225,15 +226,6 @@ export const CONTROL_PANEL_STYLES = `
   font-size: 14px;
 }
 
-.mcp-status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.mcp-status-dot.connected    { background: #34a853; }
-.mcp-status-dot.disconnected { background: #ea4335; }
 
 .panel-row {
   display: flex;
@@ -314,5 +306,103 @@ export const CONTROL_PANEL_STYLES = `
   .panel-reconnect { color: #9aa0a6; border-color: rgba(255,255,255,0.15); }
   .panel-reconnect:hover { background: rgba(255,255,255,0.06); }
   .panel-tool-count { color: #9aa0a6; }
+}
+
+/* ── FA status icon ─────────────────────────────────────────────────── */
+.mcp-status-dot { font-size: 14px; flex-shrink: 0; }
+.mcp-status-dot.connected    { color: #f59e0b; }
+.mcp-status-dot.disconnected { color: #7c3aed; }
+
+/* ── Close button ───────────────────────────────────────────────────── */
+.panel-close-btn {
+  margin-left: auto;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #5f6368;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0 2px;
+  transition: color 0.15s;
+}
+.panel-close-btn:hover { color: #ea4335; }
+
+/* ── Automation row ─────────────────────────────────────────────────── */
+.panel-automation-row { display: flex; flex-direction: column; gap: 4px; margin: 6px 0; }
+.panel-automation-item { display: flex; align-items: center; gap: 6px; font-size: 12px; width: 100%; }
+.panel-automation-item .panel-toggle { margin-left: auto; }
+.panel-automation-icon { font-size: 11px; color: #5f6368; width: 14px; text-align: center; }
+
+/* ── Tools drawer ───────────────────────────────────────────────────── */
+.panel-drawer-header {
+  display: flex; align-items: center; gap: 6px;
+  margin: 6px 0; cursor: pointer; font-size: 13px; padding: 4px 0;
+  user-select: none;
+}
+.panel-drawer-header:hover { opacity: 0.8; }
+.panel-drawer-header > i { font-size: 12px; color: #1a73e8; }
+.panel-drawer-badge {
+  font-size: 11px; background: rgba(26,115,232,0.1); color: #1a73e8;
+  border-radius: 4px; padding: 1px 5px; margin-left: 2px;
+}
+.panel-drawer-chevron { margin-left: auto; font-size: 11px; color: #5f6368; }
+.panel-drawer-body { display: none; }
+.panel-drawer-body.open { display: block; }
+.panel-drawer-scroll { max-height: 260px; overflow-y: auto; }
+.panel-drawer-search {
+  display: flex; align-items: center; gap: 6px; margin: 4px 0;
+  padding: 4px 6px; border: 1px solid rgba(0,0,0,0.1); border-radius: 4px;
+}
+.panel-drawer-search input {
+  border: none; outline: none; background: transparent;
+  font-size: 12px; color: inherit; width: 100%;
+}
+.panel-server-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0; margin-top: 6px; font-size: 12px; font-weight: 600;
+  color: #1a73e8; border-bottom: 1px solid rgba(0,0,0,0.06);
+}
+.panel-server-name { display: flex; align-items: center; gap: 5px; }
+.panel-tool-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 3px 0 3px 12px; gap: 6px;
+}
+.panel-tool-info { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.panel-tool-name { font-size: 12px; color: #202124; }
+.panel-tool-desc {
+  font-size: 11px; color: #5f6368;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* ── Half-size toggles inside the drawer ───────────────────────────── */
+.panel-drawer-body .panel-toggle { width: 18px; height: 10px; }
+.panel-drawer-body .panel-toggle-track { border-radius: 5px; }
+.panel-drawer-body .panel-toggle-track::after { width: 8px; height: 8px; top: 1px; left: 1px; }
+.panel-drawer-body .panel-toggle input:checked + .panel-toggle-track::after { left: 9px; }
+
+/* ── Inject button ──────────────────────────────────────────────────── */
+.panel-inject {
+  margin-top: 8px; width: 100%; padding: 6px;
+  border: none; border-radius: 4px;
+  background: #1a73e8; color: white; font-size: 12px; cursor: pointer;
+  transition: background 0.15s;
+}
+.panel-inject:hover { background: #1967d2; }
+
+/* ── Dark mode additions ────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  .mcp-status-dot.connected    { color: #fbbf24; }
+  .mcp-status-dot.disconnected { color: #a78bfa; }
+  .panel-automation-icon { color: #9aa0a6; }
+  .panel-drawer-header > i { color: #8ab4f8; }
+  .panel-drawer-badge { background: rgba(138,180,248,0.1); color: #8ab4f8; }
+  .panel-drawer-search { border-color: rgba(255,255,255,0.1); }
+  .panel-server-row { color: #8ab4f8; border-bottom-color: rgba(255,255,255,0.06); }
+  .panel-tool-name { color: #e8eaed; }
+  .panel-tool-desc { color: #9aa0a6; }
+  .panel-inject { background: #8ab4f8; color: #202124; }
+  .panel-inject:hover { background: #7ba9f0; }
+  .panel-close-btn { color: #9aa0a6; }
+  .panel-close-btn:hover { color: #f28b82; }
 }
 `;
