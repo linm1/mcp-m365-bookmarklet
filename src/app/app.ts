@@ -26,6 +26,12 @@ import {
 /** Captured on first valid inbound message; used as postMessage target. */
 let parentOrigin: string | null = null;
 
+/**
+ * Messages sent before parentOrigin is known are buffered here and flushed
+ * once the first valid inbound postMessage sets parentOrigin.
+ */
+const pendingMessages: unknown[] = [];
+
 (function init() {
   const settings = loadSettings();
   const serverUrl = settings.serverUrl ?? DEFAULT_SERVER_URL;
@@ -50,8 +56,14 @@ let parentOrigin: string | null = null;
 
     if (!isM365 && !isLocalhost) return;
 
-    // Capture the parent origin on first valid message for use in sendToParent
-    if (parentOrigin === null) parentOrigin = origin;
+    // Capture the parent origin on first valid message; flush any buffered messages
+    if (parentOrigin === null) {
+      parentOrigin = origin;
+      const queued = pendingMessages.splice(0);
+      for (const msg of queued) {
+        window.parent.postMessage(msg, parentOrigin);
+      }
+    }
 
     handleMessage(event.data as PageToIframeMessage, client);
   });
@@ -122,8 +134,15 @@ function sendToParent<T>(message: T, opts?: { bootstrap?: boolean }): void {
   if (!window.parent || window.parent === window) return;
   // Bootstrap signals (mcp:ready) are sent before any inbound message sets
   // parentOrigin, so we must use '*' for that one handshake only.
-  // All subsequent messages use the captured origin.
-  const target = opts?.bootstrap === true ? '*' : parentOrigin;
-  if (target === null) return;
-  window.parent.postMessage(message, target);
+  // All subsequent messages use the captured origin; if it is not yet known,
+  // buffer the message until the first valid inbound postMessage sets it.
+  if (opts?.bootstrap === true) {
+    window.parent.postMessage(message, '*');
+    return;
+  }
+  if (parentOrigin === null) {
+    pendingMessages.push(message);
+    return;
+  }
+  window.parent.postMessage(message, parentOrigin);
 }

@@ -8,6 +8,7 @@
  */
 
 import { CARD_STYLES, CONTROL_PANEL_STYLES } from './styles';
+import { FA_INLINE_CSS } from './fa-inline';
 import { IframeBridge } from './iframe-bridge';
 import { ControlPanel } from './control-panel';
 import { renderFunctionCard, updateCardResult, updateCardLoading } from './renderer';
@@ -21,6 +22,7 @@ import { DEFAULT_STATIC_URL } from '../shared/protocol';
 
 const GUARD_FLAG = '__MCP_BOOKMARKLET_ACTIVE';
 const STYLE_ID = 'mcp-bookmarklet-styles';
+const FA_LINK_ID = 'mcp-fa-styles';
 const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
@@ -49,6 +51,7 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
 
   // Inject styles
   injectStyles();
+  injectFontAwesome();
 
   // Initialize iframe bridge
   // app.html is served from the static server (port 3007), not the MCP proxy (port 3006)
@@ -65,6 +68,7 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
       autoInsert: settings.autoInsert,
       autoSubmit: settings.autoSubmit,
       autoRun: settings.autoRun,
+      tools: [],
     },
     {
       onAutoInsertChange: (enabled) => {
@@ -76,45 +80,33 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
       onAutoRunChange: (enabled) => {
         saveSettings({ ...loadSettings(), autoRun: enabled });
       },
-      onReconnect: () => {
-        panel.update({ connected: false });
-        bridge.destroy();
-        bridge.init();
-        bridge
-          .listTools()
-          .then((tools) => panel.update({ toolCount: tools.length }))
-          .catch(() => panel.update({ connected: false }));
-      },
-      onInjectInstructions: () => {
-        bridge
-          .listTools()
-          .then((tools) => {
-            const text = buildInstructions(tools);
-            attachFile(new File([text], 'mcp-instructions.md', { type: 'text/markdown' }));
-          })
-          .catch(() => {
-            const text = buildInstructions([]);
-            attachFile(new File([text], 'mcp-instructions.md', { type: 'text/markdown' }));
-          });
+      onInjectInstructions: (enabledTools) => {
+        const text = buildInstructions([...enabledTools]);
+        attachFile(new File([text], 'mcp-instructions.md', { type: 'text/markdown' }));
       },
     },
   );
   panel.mount();
 
-  // Wire connection status to panel (fixes red dot not updating)
-  bridge.onConnectionStatus = (connected) => {
-    panel.update({ connected });
+  // Probe tools as soon as iframe is ready — this sets parentOrigin in the iframe,
+  // which unblocks any buffered mcp:connection-status messages.
+  bridge.onReady = () => {
+    bridge
+      .listTools()
+      .then((tools) => panel.update({ tools, toolCount: tools.length }))
+      .catch(() => {/* server may not be up yet — onConnectionStatus will retry */});
   };
 
-  // Fetch tool list once connected
-  bridge
-    .listTools()
-    .then((tools) => {
-      panel.update({ toolCount: tools.length });
-    })
-    .catch(() => {
-      console.warn('[MCP Bookmarklet] Could not list tools — server may be offline');
-    });
+  // Wire connection status to panel; re-fetch tools whenever connection is (re)established
+  bridge.onConnectionStatus = (connected) => {
+    panel.update({ connected });
+    if (connected) {
+      bridge
+        .listTools()
+        .then((tools) => panel.update({ tools, toolCount: tools.length }))
+        .catch(() => {/* tools unavailable — panel keeps prior count */});
+    }
+  };
 
   // Start JSON extractor (MutationObserver)
   startExtractor(bridge);
@@ -130,6 +122,14 @@ function injectStyles(): void {
   const style = document.createElement('style');
   style.id = STYLE_ID;
   style.textContent = CARD_STYLES + CONTROL_PANEL_STYLES;
+  document.head.appendChild(style);
+}
+
+function injectFontAwesome(): void {
+  if (document.getElementById(FA_LINK_ID)) return;
+  const style = document.createElement('style');
+  style.id = FA_LINK_ID;
+  style.textContent = FA_INLINE_CSS;
   document.head.appendChild(style);
 }
 

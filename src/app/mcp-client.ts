@@ -41,7 +41,15 @@ interface PendingRpc {
   readonly reject: (error: Error) => void;
 }
 
+interface JsonRpcNotification {
+  readonly jsonrpc: '2.0';
+  readonly method: string;
+  readonly params: Record<string, unknown>;
+}
+
 // ── McpClient ─────────────────────────────────────────────────────────────────
+
+const AUTO_RECONNECT_DELAY_MS = 3000;
 
 export class McpClient {
   private readonly serverUrl: string;
@@ -52,6 +60,7 @@ export class McpClient {
   private pendingRpc = new Map<number, PendingRpc>();
   private initialized = false;
   private initQueue: Array<() => void> = [];
+  private stopped = false;
 
   /** Called whenever the connection status changes. */
   onStatusChange?: (connected: boolean, serverUrl: string) => void;
@@ -66,6 +75,7 @@ export class McpClient {
    * Safe to call multiple times — will not create duplicate connections.
    */
   connect(): void {
+    this.stopped = false;
     if (this.eventSource !== null) return;
 
     const es = new EventSource(`${this.serverUrl}/sse`);
@@ -89,13 +99,22 @@ export class McpClient {
 
     es.addEventListener('error', () => {
       this.onStatusChange?.(false, this.serverUrl);
+      es.close();
+      this.eventSource = null;
+      this.messageUrl = null;
+      this.initialized = false;
+      this.initQueue = [];
+      if (!this.stopped) {
+        setTimeout(() => { if (!this.stopped) this.connect(); }, AUTO_RECONNECT_DELAY_MS);
+      }
     });
 
     this.eventSource = es;
   }
 
-  /** Close the SSE connection and reset all state. */
+  /** Close the SSE connection and reset all state. Prevents auto-reconnect. */
   disconnect(): void {
+    this.stopped = true;
     this.eventSource?.close();
     this.eventSource = null;
     this.messageUrl = null;
@@ -143,6 +162,7 @@ export class McpClient {
     this.pendingRpc.set(id, {
       resolve: () => {
         this.initialized = true;
+        this.postNotification({ jsonrpc: '2.0', method: 'notifications/initialized', params: {} });
         this.onStatusChange?.(true, this.serverUrl);
         this.initQueue.splice(0).forEach(fn => fn());
       },
@@ -180,6 +200,18 @@ export class McpClient {
         reject: (e) => { clearTimeout(timeoutId); reject(e); },
       });
     });
+  }
+
+  /**
+   * Fire-and-forget POST for a JSON-RPC notification (no id, no response expected).
+   */
+  private postNotification(body: JsonRpcNotification): void {
+    if (!this.messageUrl) return;
+    fetch(this.messageUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).catch(() => {});
   }
 
   /**

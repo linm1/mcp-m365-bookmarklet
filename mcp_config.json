@@ -6,6 +6,26 @@
         "-y",
         "@wonderwhy-er/desktop-commander"
       ]
-    }
+    },
+    "sas-schema-analyzer": {
+			"type": "stdio",
+			"command": "py",
+			"args": [
+				"-m",
+				"sas_schema_analyzer.server"
+			],
+			"cwd": "C:\\Users\\LinM1\\Documents\\python\\sas_schema_analyzer"
+		},
+		"qmd": {
+		"command": "C:\\Users\\LinM1\\nodejs\\node.exe",
+		"args": [
+			"C:\\Users\\LinM1\\nodejs\\node_modules\\@tobilu\\qmd\\dist\\cli\\qmd.js",
+			"mcp"
+		]
+		},
+		"markitdown": {
+			"type": "stdio",
+			"command": "markitdown-mcp"
+		}
   }
 }
