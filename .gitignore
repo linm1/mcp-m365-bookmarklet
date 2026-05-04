@@ -35,3 +35,7 @@ Thumbs.db
 
 # bat file
 *.bat
+
+# Python bytecode
+__pycache__/
+*.pyc

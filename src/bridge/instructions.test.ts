@@ -160,6 +160,28 @@ describe('buildInstructions()', () => {
     expect(result.toLowerCase()).toMatch(/integer.*unquoted|number.*unquoted|unquoted.*number|unquoted.*integer/);
   });
 
+  it('includes call_id guidance to increment within a response and reset for the next response', () => {
+    const tools: Tool[] = [{ name: 'dummy_tool' }];
+    const result = buildInstructions(tools);
+    expect(result).toContain('increments by 1 for each additional function call in that response');
+    expect(result).toContain('Reset to 1 at the start of each new response');
+  });
+
+  it('includes 0-based indexing guidance for offset-like integer parameters', () => {
+    const tools: Tool[] = [{ name: 'dummy_tool' }];
+    const result = buildInstructions(tools);
+    expect(result).toContain('0-based indexing');
+    expect(result).toContain('"line 5" = offset 4');
+  });
+
+  it('includes milliseconds guidance for timeout_ms parameters', () => {
+    const tools: Tool[] = [{ name: 'dummy_tool' }];
+    const result = buildInstructions(tools);
+    expect(result).toContain('"timeout_ms"');
+    expect(result).toContain('milliseconds');
+    expect(result).toContain('1 second = 1000');
+  });
+
   it('RESPONSE_FORMAT example includes an unquoted numeric value (42)', () => {
     const tools: Tool[] = [{ name: 'dummy_tool' }];
     const result = buildInstructions(tools);

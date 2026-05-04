@@ -10,7 +10,8 @@
     "test:coverage": "vitest run --coverage",
     "dev": "node esbuild.config.mjs --watch",
     "serve": "http-server dist -p 3007 --cors -c-1",
-    "serve:https": "http-server dist -p 3443 --ssl --cert localhost+1.pem --key localhost+1-key.pem --cors -c-1"
+    "serve:https": "http-server dist -p 3443 --ssl --cert localhost+1.pem --key localhost+1-key.pem --cors -c-1",
+    "serve:py": "python scripts/serve_https.py"
   },
   "devDependencies": {
     "@fortawesome/fontawesome-free": "^7.2.0",

@@ -1,0 +1,5 @@
+# Shell and Python scripts must keep LF line endings on all platforms.
+# Without this, Git on Windows may rewrite them to CRLF on checkout, which
+# breaks bash scripts (shebang interpretation) and confuses Python.
+*.sh    text eol=lf
+*.py    text eol=lf

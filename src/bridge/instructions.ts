@@ -40,8 +40,9 @@ The instructions regarding function calls specify that:
 - Ask user to execute the function calls by the help of user and get back the result of the function execution.
 
 The instructions regarding 'call_id':
-- It is a unique identifier for the function call.
-- It is a number that is incremented by 1 for each new function call, starting from 1.
+- It is a unique identifier for the function call within a single response.
+- It starts at 1 in each response and increments by 1 for each additional function call in that response.
+- Reset to 1 at the start of each new response — do not carry the counter across responses.
 
 You can ask user to invoke one or more functions by writing a JSON Lines code block like the following as part of your reply to the user, MAKE SURE TO INVOKE ONLY ONE FUNCTION AT A TIME:
 
@@ -135,18 +136,7 @@ ClassName | Custom class | User
 
 // ── M365-specific overrides ────────────────────────────────────────────────────
 
-const M365_PLAIN_TEXT_OVERRIDE = `IMPORTANT: Output function call JSON objects as PLAIN TEXT with NO code fence wrapper.
-
-Example of correct output (plain text, no backtick fences):
-
-{"type": "function_call_start", "name": "function_name", "call_id": 1}
-{"type": "description", "text": "Short 1 line of what this function does"}
-{"type": "parameter", "key": "parameter_1", "value": "value_1"}
-{"type": "parameter", "key": "parameter_2", "value": "value_2"}
-{"type": "function_call_end", "call_id": 1}
-
-Do NOT wrap these lines in \`\`\` code fences of any kind. Output them as raw plain text.
-Each JSON object must be on a single line with no nested braces in parameter values.
+const M365_PLAIN_TEXT_OVERRIDE = `IMPORTANT: Output function call JSON objects as PLAIN TEXT with NO code fence wrapper. Do NOT wrap these lines in \`\`\` code fences of any kind. Output them as raw plain text. Each JSON object must be on a single line.
 
 `;
 
@@ -168,7 +158,9 @@ IMPORTANT OVERRIDE FOR M365 COPILOT — HIGHEST PRIORITY, SUPERSEDES ALL ABOVE:
 - A browser extension detects these plain text JSON lines and executes the function call
 - After outputting the JSON lines, STOP and wait for <function_results> to be provided
 - DO NOT generate or mock <function_results> yourself
-- All other tools and functions are disabled except for the ones available to SuperAssistant
+- Only use the tools listed in AVAILABLE TOOLS above. Do not invoke any other tools or functions.
+- Integer parameters such as "offset" use 0-based indexing ("line 5" = offset 4). Output as unquoted integer.
+- Time parameters such as "timeout_ms" are in milliseconds (1 second = 1000). Output as unquoted integer.
 `;
 
 // ── Builder ────────────────────────────────────────────────────────────────────
