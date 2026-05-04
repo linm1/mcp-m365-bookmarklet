@@ -116,6 +116,26 @@ describe('McpClient', () => {
       expect(onStatus).toHaveBeenCalledWith(true, 'http://localhost:3006');
     });
 
+    it('sends notifications/initialized after initialize response', () => {
+      const { fireEndpoint, fireMessage, fetchMock } = makeMcpSetup();
+
+      client.connect();
+      fireEndpoint();
+
+      const initBody = JSON.parse(
+        (fetchMock.mock.calls[0][1] as RequestInit).body as string,
+      ) as { id: number };
+      fireMessage(initBody.id, { protocolVersion: '2024-11-05', capabilities: {} });
+
+      // Second fetch call should be the notifications/initialized notification
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const notifBody = JSON.parse(
+        (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+      ) as Record<string, unknown>;
+      expect(notifBody.method).toBe('notifications/initialized');
+      expect(notifBody.id).toBeUndefined();
+    });
+
     it('fires onStatusChange(false) on EventSource error', () => {
       const { fireError } = makeMcpSetup();
       const onStatus = vi.fn();
@@ -152,12 +172,13 @@ describe('McpClient', () => {
         (fetchMock.mock.calls[0][1] as RequestInit).body as string,
       ) as { id: number };
       fireMessage(initId.id, { protocolVersion: '2024-11-05' });
+      // calls[1] is notifications/initialized (fire-and-forget, no response needed)
 
       // Now call listTools — should POST tools/list
       const promise = client.listTools();
 
       const listId = JSON.parse(
-        (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        (fetchMock.mock.calls[2][1] as RequestInit).body as string,
       ) as { id: number };
       fireMessage(listId.id, { tools });
 
@@ -185,10 +206,11 @@ describe('McpClient', () => {
       fireMessage(initId.id, {});
 
       // After init succeeds, queued listTools POST should fire
+      // calls[1] is notifications/initialized; calls[2] is the queued listTools
       await Promise.resolve(); // flush microtask queue
 
       const listId = JSON.parse(
-        (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        (fetchMock.mock.calls[2][1] as RequestInit).body as string,
       ) as { id: number };
       fireMessage(listId.id, { tools });
 
@@ -207,7 +229,7 @@ describe('McpClient', () => {
 
       const promise = client.listTools();
       const listId = JSON.parse(
-        (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        (fetchMock.mock.calls[2][1] as RequestInit).body as string,
       ) as { id: number };
       fireMessage(listId.id, {});
 
@@ -226,7 +248,7 @@ describe('McpClient', () => {
 
       const promise = client.listTools();
       const listId = JSON.parse(
-        (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        (fetchMock.mock.calls[2][1] as RequestInit).body as string,
       ) as { id: number };
       fireRpcError(listId.id, 'Method not found');
 
@@ -249,7 +271,7 @@ describe('McpClient', () => {
 
       const promise = client.callTool('read_file', { path: '/tmp/test.txt' });
       const callId = JSON.parse(
-        (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        (fetchMock.mock.calls[2][1] as RequestInit).body as string,
       ) as { id: number; method: string; params: Record<string, unknown> };
 
       expect(callId.method).toBe('tools/call');
@@ -272,7 +294,7 @@ describe('McpClient', () => {
 
       const promise = client.callTool('read_file', { path: '/tmp/test.txt' });
       const callId = JSON.parse(
-        (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        (fetchMock.mock.calls[2][1] as RequestInit).body as string,
       ) as { id: number };
       fireMessage(callId.id, { content });
 
@@ -292,12 +314,13 @@ describe('McpClient', () => {
       // Launch two concurrent tool calls
       const p1 = client.callTool('tool_a', {});
       const p2 = client.callTool('tool_b', {});
+      // calls[0]=initialize, calls[1]=notifications/initialized, calls[2]=tool_a, calls[3]=tool_b
 
       const body1 = JSON.parse(
-        (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        (fetchMock.mock.calls[2][1] as RequestInit).body as string,
       ) as { id: number };
       const body2 = JSON.parse(
-        (fetchMock.mock.calls[2][1] as RequestInit).body as string,
+        (fetchMock.mock.calls[3][1] as RequestInit).body as string,
       ) as { id: number };
 
       expect(body1.id).not.toBe(body2.id);
@@ -322,7 +345,7 @@ describe('McpClient', () => {
 
       const promise = client.callTool('bad_tool', {});
       const callId = JSON.parse(
-        (fetchMock.mock.calls[1][1] as RequestInit).body as string,
+        (fetchMock.mock.calls[2][1] as RequestInit).body as string,
       ) as { id: number };
       fireRpcError(callId.id, 'Tool execution failed');
 
@@ -378,6 +401,56 @@ describe('McpClient', () => {
 
     it('is safe to call when not connected', () => {
       expect(() => client.disconnect()).not.toThrow();
+    });
+  });
+
+  // ── auto-reconnect ──────────────────────────────────────────────────────────
+
+  describe('auto-reconnect', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('schedules reconnect after SSE error', () => {
+      const { fireError } = makeMcpSetup();
+      client.connect();
+
+      expect(global.EventSource).toHaveBeenCalledTimes(1);
+
+      // Trigger SSE error — clears eventSource, schedules retry
+      fireError();
+
+      // Advance past the 3-second delay
+      vi.advanceTimersByTime(3100);
+
+      // A second EventSource should have been created
+      expect(global.EventSource).toHaveBeenCalledTimes(2);
+    });
+
+    it('does NOT reconnect after explicit disconnect()', () => {
+      const { fireError } = makeMcpSetup();
+      client.connect();
+      client.disconnect();
+      fireError();
+
+      vi.advanceTimersByTime(5000);
+
+      expect(global.EventSource).toHaveBeenCalledTimes(1);
+    });
+
+    it('fires onStatusChange(false) on SSE error before retrying', () => {
+      const onStatus = vi.fn();
+      client.onStatusChange = onStatus;
+
+      const { fireError } = makeMcpSetup();
+      client.connect();
+      fireError();
+
+      expect(onStatus).toHaveBeenCalledWith(false, 'http://localhost:3006');
     });
   });
 });

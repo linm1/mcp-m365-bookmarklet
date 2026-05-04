@@ -51,6 +51,9 @@ export class IframeBridge {
   private messageHandler: ((event: MessageEvent) => void) | null = null;
   private requestCounter = 0;
 
+  /** Called when the iframe signals mcp:ready — use to send initial requests. */
+  onReady?: () => void;
+
   /** Called whenever the MCP server connection status changes. */
   onConnectionStatus?: (connected: boolean, serverUrl: string) => void;
 
@@ -169,6 +172,7 @@ export class IframeBridge {
         iframeWindow.postMessage(item.message, LOCALHOST_ORIGIN);
       }
     }
+    this.onReady?.();
   }
 
   // ── Private ───────────────────────────────────────────────────────────────

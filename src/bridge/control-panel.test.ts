@@ -101,14 +101,6 @@ describe('ControlPanel', () => {
       expect(autoSubmitInput?.checked).toBe(true);
     });
 
-    it('renders a Reconnect button', () => {
-      const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
-      panel.mount();
-
-      const btn = document.querySelector('.panel-reconnect') as HTMLButtonElement;
-      expect(btn).not.toBeNull();
-      expect(btn.textContent?.trim()).toContain('Reconnect');
-    });
   });
 
   // ── destroy ────────────────────────────────────────────────────────────────
@@ -222,20 +214,6 @@ describe('ControlPanel', () => {
       expect(onAutoSubmitChange).toHaveBeenCalledWith(true);
     });
 
-    it('fires onReconnect when Reconnect button is clicked', () => {
-      const onReconnect = vi.fn();
-      const panel = new ControlPanel(
-        { connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] },
-        { onReconnect },
-      );
-      panel.mount();
-
-      const btn = document.querySelector('.panel-reconnect') as HTMLButtonElement;
-      btn.click();
-
-      expect(onReconnect).toHaveBeenCalledTimes(1);
-    });
-
     it('fires onAutoRunChange when auto-run toggle is changed', () => {
       const onAutoRunChange = vi.fn();
       const panel = new ControlPanel(
@@ -285,7 +263,7 @@ describe('ControlPanel', () => {
       const panel = new ControlPanel({ connected: false, toolCount: 0, autoInsert: false, autoSubmit: false, autoRun: false, tools: [] });
       panel.mount();
 
-      const btn = document.querySelector('.panel-reconnect') as HTMLButtonElement;
+      const btn = document.querySelector('.panel-inject') as HTMLButtonElement;
       const el = document.getElementById('mcp-bookmarklet-panel')!;
       const initialRight = el.style.right;
 

@@ -92,6 +92,40 @@ describe('app.ts bootstrap', () => {
     }
   });
 
+  it('buffers connection-status sent before parentOrigin is known and delivers it on first valid inbound message', async () => {
+    const parentOrigin = 'https://localhost:3443';
+    const { parentPostMessage, esMock, fireInbound } = makeAppSetup({ parentOrigin });
+
+    await import('./app');
+
+    // Simulate SSE error (triggers onStatusChange(false)) before any inbound message
+    const errorHandler = esMock.addEventListener.mock.calls.find(
+      ([name]: [string]) => name === 'error',
+    )?.[1] as (() => void) | undefined;
+    errorHandler?.();
+
+    // At this point parentOrigin is still null — status should be buffered, not dropped
+    const callsBeforeInbound = parentPostMessage.mock.calls as Array<[unknown, string]>;
+    const statusBeforeInbound = callsBeforeInbound.filter(
+      ([msg]) => (msg as { type?: string })?.type === 'mcp:connection-status',
+    );
+    expect(statusBeforeInbound).toHaveLength(0); // not yet delivered
+
+    // Now fire a valid inbound message to set parentOrigin
+    fireInbound({ type: 'mcp:list-tools', requestId: 'r-buf' }, parentOrigin);
+
+    // Buffered status should now have been flushed to parent
+    const callsAfter = parentPostMessage.mock.calls as Array<[unknown, string]>;
+    const statusAfter = callsAfter.filter(
+      ([msg]) => (msg as { type?: string })?.type === 'mcp:connection-status',
+    );
+    expect(statusAfter.length).toBeGreaterThan(0);
+    // All flushed messages must use the captured parentOrigin, not '*'
+    for (const [, target] of statusAfter) {
+      expect(target).toBe(parentOrigin);
+    }
+  });
+
   it('ignores inbound messages from disallowed origins', async () => {
     const { parentPostMessage, fireInbound } = makeAppSetup();
 

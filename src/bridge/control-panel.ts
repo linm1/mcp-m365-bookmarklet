@@ -6,7 +6,6 @@
  *   - Horizontal automation toggle row (Insert / Submit / Run)
  *   - ToolsDrawer sub-component (collapsible tool list)
  *   - Inject Instructions button
- *   - Reconnect button
  */
 
 import type { Tool } from '../shared/protocol';
@@ -30,7 +29,6 @@ export interface PanelCallbacks {
   readonly onAutoInsertChange?: (enabled: boolean) => void;
   readonly onAutoSubmitChange?: (enabled: boolean) => void;
   readonly onAutoRunChange?: (enabled: boolean) => void;
-  readonly onReconnect?: () => void;
   readonly onInjectInstructions?: (enabledTools: readonly Tool[]) => void;
   readonly onClose?: () => void;
 }
@@ -126,7 +124,6 @@ export class ControlPanel {
     panel.appendChild(this.buildAutomationRow());
     this.toolsDrawer.mount(panel);
     panel.appendChild(this.buildInjectButton());
-    panel.appendChild(this.buildReconnectButton());
 
     return panel;
   }
@@ -258,20 +255,6 @@ export class ControlPanel {
     });
 
     return injectBtn;
-  }
-
-  private buildReconnectButton(): HTMLElement {
-    const reconnectBtn = document.createElement('button');
-    reconnectBtn.className = 'panel-reconnect';
-
-    const rotIcon = document.createElement('i');
-    rotIcon.className = 'fa-solid fa-rotate';
-    reconnectBtn.appendChild(rotIcon);
-
-    reconnectBtn.appendChild(document.createTextNode(' Reconnect'));
-    reconnectBtn.addEventListener('click', () => this.callbacks.onReconnect?.());
-
-    return reconnectBtn;
   }
 
   private updateInjectCount(count: number): void {

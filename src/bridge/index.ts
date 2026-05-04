@@ -80,15 +80,6 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
       onAutoRunChange: (enabled) => {
         saveSettings({ ...loadSettings(), autoRun: enabled });
       },
-      onReconnect: () => {
-        panel.update({ connected: false });
-        bridge.destroy();
-        bridge.init();
-        bridge
-          .listTools()
-          .then((tools) => panel.update({ tools, toolCount: tools.length }))
-          .catch(() => panel.update({ connected: false }));
-      },
       onInjectInstructions: (enabledTools) => {
         const text = buildInstructions([...enabledTools]);
         attachFile(new File([text], 'mcp-instructions.md', { type: 'text/markdown' }));
@@ -97,20 +88,25 @@ const VALID_HOSTNAMES = ['m365.cloud.microsoft'];
   );
   panel.mount();
 
-  // Wire connection status to panel (fixes red dot not updating)
-  bridge.onConnectionStatus = (connected) => {
-    panel.update({ connected });
+  // Probe tools as soon as iframe is ready — this sets parentOrigin in the iframe,
+  // which unblocks any buffered mcp:connection-status messages.
+  bridge.onReady = () => {
+    bridge
+      .listTools()
+      .then((tools) => panel.update({ tools, toolCount: tools.length }))
+      .catch(() => {/* server may not be up yet — onConnectionStatus will retry */});
   };
 
-  // Fetch tool list once connected
-  bridge
-    .listTools()
-    .then((tools) => {
-      panel.update({ tools, toolCount: tools.length });
-    })
-    .catch(() => {
-      console.warn('[MCP Bookmarklet] Could not list tools — server may be offline');
-    });
+  // Wire connection status to panel; re-fetch tools whenever connection is (re)established
+  bridge.onConnectionStatus = (connected) => {
+    panel.update({ connected });
+    if (connected) {
+      bridge
+        .listTools()
+        .then((tools) => panel.update({ tools, toolCount: tools.length }))
+        .catch(() => {/* tools unavailable — panel keeps prior count */});
+    }
+  };
 
   // Start JSON extractor (MutationObserver)
   startExtractor(bridge);

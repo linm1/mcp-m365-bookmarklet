@@ -274,21 +274,6 @@ export const CONTROL_PANEL_STYLES = `
 
 .panel-toggle input:checked + .panel-toggle-track::after { left: 18px; }
 
-.panel-reconnect {
-  margin-top: 8px;
-  width: 100%;
-  padding: 5px;
-  border: 1px solid rgba(0,0,0,0.15);
-  border-radius: 4px;
-  background: transparent;
-  font-size: 12px;
-  cursor: pointer;
-  color: #5f6368;
-  transition: background 0.15s;
-}
-
-.panel-reconnect:hover { background: rgba(0,0,0,0.04); }
-
 .panel-tool-count {
   font-size: 12px;
   color: #5f6368;
@@ -303,8 +288,6 @@ export const CONTROL_PANEL_STYLES = `
     color: #e8eaed;
     box-shadow: 0 4px 16px rgba(0,0,0,0.4);
   }
-  .panel-reconnect { color: #9aa0a6; border-color: rgba(255,255,255,0.15); }
-  .panel-reconnect:hover { background: rgba(255,255,255,0.06); }
   .panel-tool-count { color: #9aa0a6; }
 }
 
