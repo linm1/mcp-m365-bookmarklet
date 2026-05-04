@@ -87,7 +87,7 @@ python scripts/serve_https.py
 
 This serves the same `dist/` folder on the same `https://localhost:3443`, so the bookmarklet URL and all hardcoded constants stay unchanged. The existing `mkcert` / `npm run serve:https` path is still fully supported — both approaches share the same cert filenames (`localhost+1.pem` / `localhost+1-key.pem`).
 
-Note: `serve_https.py` binds to `0.0.0.0` by default (all interfaces); on a shared or untrusted network pass `--host 127.0.0.1` to restrict it to localhost only.
+Note: `serve_https.py` binds to `0.0.0.0` by default (all interfaces), but you should still open `https://localhost:3443/` in the browser because the bookmarklet iframe origin is pinned to `localhost`. On a shared or untrusted network pass `--host 127.0.0.1` to restrict it to localhost only.
 
 ### 3. Create the bookmarklet
 
@@ -97,14 +97,14 @@ Create a new browser bookmark with the following URL:
 javascript:void(document.head.appendChild(Object.assign(document.createElement('script'),{src:'https://localhost:3443/bridge.js?t='+Date.now()})))
 ```
 
-The `?t=`+`Date.now()` query string is a cache-buster — it forces the browser to refetch `bridge.js` on every click instead of serving a stale copy. Useful during development when you're rebuilding the bundle. The MCP server itself is unaffected; only the static asset is reloaded.
+The `?t=`+`Date.now()` query string is a cache-buster — it forces the browser to refetch `bridge.js` on every click instead of serving a stale copy. Useful during development when you're rebuilding the bundle, but the live page still guards against double-injection, so reload the M365 page before clicking the bookmarklet again after a rebuild. The MCP server itself is unaffected; only the static asset URL is cache-busted.
 
 ### 4. Activate
 
 1. Start your MCP server on `localhost:3006`.
 2. Visit `https://localhost:3443/` once in your browser and accept the self-signed certificate warning.
 3. Navigate to [M365 Copilot Chat](https://m365.cloud.microsoft).
-4. Click the bookmarklet — a small control panel appears in the **bottom-right corner** showing connection status and available tools. The panel is draggable and saves its position to `localStorage`. If you can't find it, run this in DevTools console to reset its position: `localStorage.removeItem('mcp_panel_position'); location.reload();`
+4. Click the bookmarklet — a small control panel appears in the **bottom-right corner** showing connection status and available tools. The panel is draggable and saves its position to `sessionStorage`. If you can't find it, run this in DevTools console to reset its position: `sessionStorage.removeItem('mcp_panel_position'); location.reload();`
 
 ---
 

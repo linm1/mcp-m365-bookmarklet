@@ -6,6 +6,9 @@ Usage:
 
 Defaults: cert=localhost+1.pem, key=localhost+1-key.pem, port=3443,
           root=dist, host=0.0.0.0
+
+Open the server in a browser via https://localhost:3443/ so it matches the
+bookmarklet iframe origin contract.
 """
 
 import argparse
@@ -65,8 +68,9 @@ def main():
 
     with ThreadingHTTPServer((args.host, args.port), handler) as server:
         server.socket = ctx.wrap_socket(server.socket, server_side=True)
+        print(f"Serving HTTPS on {args.host}:{args.port} (root={root})")
         print(
-            f"Serving HTTPS on https://{args.host}:{args.port}/ (root={root})"
+            f"Open https://localhost:{args.port}/ in your browser to match the bookmarklet origin."
         )
         try:
             server.serve_forever()
